@@ -16,6 +16,10 @@
   <div id="alertBox"></div>
 
   <div class="card">
+    <div class="field" style="margin-bottom: 1rem;">
+      <label>Buscar cliente</label>
+      <input id="buscaCliente" placeholder="Digite o nome do cliente..." />
+    </div>
     <div class="form-grid cols-3">
       <div class="field">
         <label>Status</label>
@@ -51,8 +55,8 @@
 
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Cliente</th><th>Mês</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
-      <tbody id="tabelaContas"><tr><td colspan="6">Carregando...</td></tr></tbody>
+      <thead><tr><th>Status</th><th>Cliente</th><th>Histórico</th><th>Competência</th><th>Vencimento</th><th>Valor</th><th></th></tr></thead>
+      <tbody id="tabelaContas"><tr><td colspan="7">Carregando...</td></tr></tbody>
     </table>
   </div>
 </template>
@@ -84,6 +88,7 @@
 
   const alertBox = document.getElementById("alertBox");
   const modalOverlay = document.getElementById("modalOverlay");
+  let contasCache = [];
 
   function fecharModal() {
     modalOverlay.classList.add("hidden");
@@ -92,6 +97,20 @@
   modalOverlay.addEventListener("click", (e) => {
     if (e.target === modalOverlay) fecharModal();
   });
+
+  function competenciaLegivel(mes) {
+    if (!mes) return "-";
+    const [ano, mesNum] = mes.split("-");
+    return `${mesNum}/${ano}`;
+  }
+
+  function badgeSituacao(conta) {
+    if (conta.status === "PAGO") return '<span class="badge badge-success">Pago</span>';
+    const hoje = new Date().toISOString().slice(0, 10);
+    const vencimento = new Date(conta.vencimento).toISOString().slice(0, 10);
+    if (vencimento < hoje) return '<span class="badge badge-danger">Vencido</span>';
+    return '<span class="badge badge-muted">A vencer</span>';
+  }
 
   function montarQuery() {
     const params = new URLSearchParams();
@@ -113,29 +132,64 @@
     centros.forEach((c) => select.insertAdjacentHTML("beforeend", `<option value="${c.id}">${c.nome} (${c.numero})</option>`));
   }
 
-  async function carregar() {
-    const contas = await adminApi(`/contas-receber${montarQuery()}`);
+  function renderTabela() {
+    const termo = document.getElementById("buscaCliente").value.trim().toLowerCase();
+    const contas = termo
+      ? contasCache.filter((c) => (c.contrato?.cliente?.nome || "").toLowerCase().includes(termo))
+      : contasCache;
+
     const tbody = document.getElementById("tabelaContas");
     tbody.innerHTML = contas.length
       ? contas
           .map(
             (c) => `
       <tr>
+        <td data-label="Status">${badgeSituacao(c)}</td>
         <td data-label="Cliente">${c.contrato?.cliente?.nome || "-"}</td>
-        <td data-label="Mês">${mesReferenciaLegivel(c.mesReferencia)}</td>
-        <td data-label="Valor">${formatMoeda(c.valor)}</td>
+        <td data-label="Histórico">Mensalidade ${c.contrato?.plano?.nome || ""} — ${mesReferenciaLegivel(c.mesReferencia)}</td>
+        <td data-label="Competência">${competenciaLegivel(c.mesReferencia)}</td>
         <td data-label="Vencimento">${formatData(c.vencimento)}</td>
-        <td data-label="Status">${badgeStatusConta(c.status)}</td>
-        <td data-label=""><button class="btn btn-ghost" data-abrir="${c.id}">Ver</button></td>
+        <td data-label="Valor">${formatMoeda(c.valor)}</td>
+        <td data-label="">
+          <details class="row-actions">
+            <summary class="btn btn-ghost">Ações</summary>
+            <div class="row-actions-menu">
+              <button type="button" data-abrir="${c.id}">Ver detalhe</button>
+              ${c.status !== "PAGO" ? `<button type="button" data-pagar-rapido="${c.id}">Marcar como pago</button>` : ""}
+            </div>
+          </details>
+        </td>
       </tr>`
           )
           .join("")
-      : `<tr><td colspan="6"><div class="empty-state">Nenhuma conta encontrada.</div></td></tr>`;
+      : `<tr><td colspan="7"><div class="empty-state">Nenhuma conta encontrada.</div></td></tr>`;
 
     document.querySelectorAll("[data-abrir]").forEach((btn) => {
-      btn.onclick = () => abrirModal(btn.dataset.abrir);
+      btn.onclick = (e) => {
+        e.target.closest("details").open = false;
+        abrirModal(btn.dataset.abrir);
+      };
+    });
+
+    document.querySelectorAll("[data-pagar-rapido]").forEach((btn) => {
+      btn.onclick = async (e) => {
+        e.target.closest("details").open = false;
+        try {
+          await adminApi(`/contas-receber/${btn.dataset.pagarRapido}/pagar`, { method: "PATCH" });
+          carregar();
+        } catch (err) {
+          alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+        }
+      };
     });
   }
+
+  async function carregar() {
+    contasCache = await adminApi(`/contas-receber${montarQuery()}`);
+    renderTabela();
+  }
+
+  document.getElementById("buscaCliente").addEventListener("input", renderTabela);
 
   async function abrirModal(id) {
     modalOverlay.classList.remove("hidden");
@@ -157,7 +211,7 @@
           <div><strong>Mês:</strong> ${mesReferenciaLegivel(conta.mesReferencia)}</div>
           <div><strong>Valor:</strong> ${formatMoeda(conta.valor)}</div>
           <div><strong>Vencimento:</strong> ${formatData(conta.vencimento)}</div>
-          <div><strong>Status:</strong> ${badgeStatusConta(conta.status)}</div>
+          <div><strong>Status:</strong> ${badgeSituacao(conta)}</div>
           <div><strong>Data de pagamento:</strong> ${conta.dataPagamento ? formatData(conta.dataPagamento) : "-"}</div>
           <div><strong>Confirmado por:</strong> ${conta.confirmadoPor?.nome || "-"}</div>
         </div>
@@ -260,6 +314,7 @@
     document.getElementById("filtroDataInicio").value = "";
     document.getElementById("filtroDataFim").value = "";
     document.getElementById("filtroCentroCusto").value = "";
+    document.getElementById("buscaCliente").value = "";
     carregar();
   };
 

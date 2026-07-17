@@ -347,6 +347,49 @@ p { color: var(--text-muted); margin: 0 0 1rem; }
   margin-bottom: 1.25rem;
 }
 
+/* ---------- Menu de ações (dropdown por linha) ---------- */
+
+.row-actions { position: relative; display: inline-block; }
+
+.row-actions summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.row-actions summary::-webkit-details-marker { display: none; }
+
+.row-actions-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  z-index: 5;
+}
+
+.row-actions-menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.row-actions-menu button:hover { background: var(--bg); }
+
+@media (max-width: 700px) {
+  .row-actions-menu { position: static; box-shadow: none; margin-top: 0.4rem; }
+}
+
 /* ---------- Forms ---------- */
 
 .field { margin-bottom: 0.9rem; }

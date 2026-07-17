@@ -135,6 +135,9 @@ model Contrato {
   plano              Plano          @relation(fields: [planoId], references: [id])
   valorImplantacao   Decimal        @db.Decimal(10, 2) @default(0)
   dataAssinatura     DateTime?
+  dataInicio         DateTime?
+  dataTermino        DateTime?
+  diaVencimento      Int?           // dia padrão de vencimento do boleto mensal (1-31)
   status             StatusContrato @default(ATIVO)
   criadoEm           DateTime       @default(now())
 

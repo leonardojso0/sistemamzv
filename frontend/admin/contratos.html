@@ -29,6 +29,9 @@
       </div>
       <div class="field"><label>Valor de implantação (R$)</label><input id="valorImplantacao" type="number" step="0.01" min="0" value="0" /></div>
       <div class="field"><label>Data de assinatura</label><input id="dataAssinatura" type="date" /></div>
+      <div class="field"><label>Início da vigência</label><input id="dataInicio" type="date" /></div>
+      <div class="field"><label>Término da vigência</label><input id="dataTermino" type="date" /></div>
+      <div class="field"><label>Dia de vencimento padrão</label><input id="diaVencimento" type="number" min="1" max="31" placeholder="Ex: 5" /></div>
       <div class="field" style="grid-column: 1 / -1;">
         <div class="flex-between">
           <button type="button" class="btn btn-ghost" id="btnCancelar">Cancelar</button>
@@ -40,8 +43,8 @@
 
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Cliente</th><th>Plano</th><th>Status</th><th>Assinatura</th><th></th></tr></thead>
-      <tbody id="tabelaContratos"><tr><td colspan="5">Carregando...</td></tr></tbody>
+      <thead><tr><th>Cliente</th><th>Plano</th><th>Status</th><th>Vigência</th><th>Vencimento</th><th></th></tr></thead>
+      <tbody id="tabelaContratos"><tr><td colspan="6">Carregando...</td></tr></tbody>
     </table>
   </div>
 </template>
@@ -79,7 +82,8 @@
         <td data-label="Cliente"><a href="cliente-detalhe.html?id=${c.cliente.id}">${c.cliente.nome}</a></td>
         <td data-label="Plano">${c.plano.nome} (${c.plano.velocidade})</td>
         <td data-label="Status">${badgeStatusContrato(c.status)}</td>
-        <td data-label="Assinatura">${formatData(c.dataAssinatura)}</td>
+        <td data-label="Vigência">${c.dataInicio ? formatData(c.dataInicio) : "-"} a ${c.dataTermino ? formatData(c.dataTermino) : "-"}</td>
+        <td data-label="Vencimento">${c.diaVencimento ? `Dia ${c.diaVencimento}` : "-"}</td>
         <td data-label="">
           ${
             c.status === "ATIVO"
@@ -93,7 +97,7 @@
       </tr>`
           )
           .join("")
-      : `<tr><td colspan="5"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
+      : `<tr><td colspan="6"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
 
     document.querySelectorAll("[data-status]").forEach((btn) => {
       btn.onclick = async () => {
@@ -130,6 +134,9 @@
           planoId: document.getElementById("planoId").value,
           valorImplantacao: parseFloat(document.getElementById("valorImplantacao").value || "0"),
           dataAssinatura: document.getElementById("dataAssinatura").value || undefined,
+          dataInicio: document.getElementById("dataInicio").value || undefined,
+          dataTermino: document.getElementById("dataTermino").value || undefined,
+          diaVencimento: document.getElementById("diaVencimento").value || undefined,
         },
       });
       document.getElementById("contratoForm").reset();

@@ -14,7 +14,7 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const { clienteId, planoId, valorImplantacao, dataAssinatura } = req.body;
+  const { clienteId, planoId, valorImplantacao, dataAssinatura, dataInicio, dataTermino, diaVencimento } = req.body;
 
   const contrato = await prisma.contrato.create({
     data: {
@@ -22,6 +22,9 @@ router.post("/", async (req, res) => {
       planoId,
       valorImplantacao: valorImplantacao || 0,
       dataAssinatura: dataAssinatura ? new Date(dataAssinatura) : null,
+      dataInicio: dataInicio ? new Date(dataInicio) : null,
+      dataTermino: dataTermino ? new Date(dataTermino) : null,
+      diaVencimento: diaVencimento ? parseInt(diaVencimento, 10) : null,
     },
     include: { cliente: true, plano: true },
   });
@@ -39,7 +42,7 @@ router.post("/", async (req, res) => {
 
 // Atualiza status, data de assinatura, valor de implantação e/ou o plano do contrato
 router.put("/:id", async (req, res) => {
-  const { status, dataAssinatura, valorImplantacao, planoId } = req.body;
+  const { status, dataAssinatura, valorImplantacao, planoId, dataInicio, dataTermino, diaVencimento } = req.body;
 
   const contratoAtual = await prisma.contrato.findUnique({
     where: { id: req.params.id },
@@ -51,6 +54,9 @@ router.put("/:id", async (req, res) => {
     status,
     dataAssinatura: dataAssinatura ? new Date(dataAssinatura) : undefined,
     valorImplantacao: valorImplantacao !== undefined ? valorImplantacao : undefined,
+    dataInicio: dataInicio !== undefined ? (dataInicio ? new Date(dataInicio) : null) : undefined,
+    dataTermino: dataTermino !== undefined ? (dataTermino ? new Date(dataTermino) : null) : undefined,
+    diaVencimento: diaVencimento !== undefined ? (diaVencimento ? parseInt(diaVencimento, 10) : null) : undefined,
   };
   if (planoId) dados.planoId = planoId;
 
