@@ -1,6 +1,7 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
 const { autenticarAdmin } = require("../middleware/auth");
+const { gerarExcelContas, gerarPdfContas } = require("../lib/exportar");
 
 const router = express.Router();
 router.use(autenticarAdmin);
@@ -11,10 +12,7 @@ function formatarDataBR(data) {
   return new Date(data).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
-// Lista com filtros: status, período (por vencimento), cliente e centro de custo
-router.get("/", async (req, res) => {
-  const { status, dataInicio, dataFim, clienteId, centroCustoId } = req.query;
-
+function montarFiltro({ status, dataInicio, dataFim, clienteId, centroCustoId }) {
   const where = {};
   if (status) where.status = status;
   if (dataInicio || dataFim) {
@@ -28,9 +26,13 @@ router.get("/", async (req, res) => {
       cliente: centroCustoId ? { centroCustoId } : undefined,
     };
   }
+  return where;
+}
 
+// Lista com filtros: status, período (por vencimento), cliente e centro de custo
+router.get("/", async (req, res) => {
   const contas = await prisma.contaReceber.findMany({
-    where,
+    where: montarFiltro(req.query),
     include: {
       contrato: { include: { cliente: { include: { centroCusto: true } }, plano: true } },
       boleto: true,
@@ -39,6 +41,40 @@ router.get("/", async (req, res) => {
   });
 
   res.json(contas);
+});
+
+// Exportação em Excel (respeita os mesmos filtros da listagem)
+router.get("/exportar/excel", async (req, res) => {
+  const contas = await prisma.contaReceber.findMany({
+    where: montarFiltro(req.query),
+    include: {
+      contrato: { include: { cliente: { include: { centroCusto: true } }, plano: true } },
+      boleto: true,
+    },
+    orderBy: { vencimento: "asc" },
+  });
+
+  const buffer = await gerarExcelContas(contas);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="contas-a-receber-${Date.now()}.xlsx"`);
+  res.send(Buffer.from(buffer));
+});
+
+// Exportação em PDF (respeita os mesmos filtros da listagem)
+router.get("/exportar/pdf", async (req, res) => {
+  const contas = await prisma.contaReceber.findMany({
+    where: montarFiltro(req.query),
+    include: {
+      contrato: { include: { cliente: { include: { centroCusto: true } }, plano: true } },
+      boleto: true,
+    },
+    orderBy: { vencimento: "asc" },
+  });
+
+  const buffer = await gerarPdfContas(contas, req.query);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="contas-a-receber-${Date.now()}.pdf"`);
+  res.send(buffer);
 });
 
 // Detalhe de uma conta (usado ao clicar no lançamento)

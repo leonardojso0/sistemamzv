@@ -36,6 +36,36 @@ async function apiRequest(path, { method = "GET", body, isFormData = false, toke
 const adminApi = (path, opts = {}) => apiRequest(path, { ...opts, tokenKey: ADMIN_TOKEN_KEY });
 const clienteApi = (path, opts = {}) => apiRequest(path, { ...opts, tokenKey: CLIENTE_TOKEN_KEY });
 
+// Baixa um arquivo binário (Excel/PDF) da API autenticada como admin e dispara o download no navegador.
+async function baixarArquivoAdmin(path) {
+  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    let msg = `Erro ${res.status}`;
+    try {
+      const data = await res.json();
+      msg = data.erro || msg;
+    } catch (_) {}
+    throw new Error(msg);
+  }
+
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const nomeArquivo = match ? match[1] : "download";
+
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 function formatMoeda(valor) {
   const numero = Number(valor || 0);
   return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

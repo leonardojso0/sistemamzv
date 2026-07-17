@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const multer = require("multer");
 const prisma = require("../lib/prisma");
 const { uploadArquivo, gerarLinkDownload, excluirArquivo } = require("../lib/storage");
+const { gerarExcelClientes } = require("../lib/exportar");
 const { autenticarAdmin } = require("../middleware/auth");
 
 const router = express.Router();
@@ -34,6 +35,19 @@ router.get("/", async (req, res) => {
     include: { contratos: { include: { plano: true } }, centroCusto: true },
   });
   res.json(clientes);
+});
+
+// Exportação da lista de clientes em Excel
+router.get("/exportar/excel", async (req, res) => {
+  const clientes = await prisma.cliente.findMany({
+    orderBy: { nome: "asc" },
+    include: { centroCusto: true },
+  });
+
+  const buffer = await gerarExcelClientes(clientes);
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="clientes-${Date.now()}.xlsx"`);
+  res.send(Buffer.from(buffer));
 });
 
 // Detalhe do cliente (com documentos e contratos)

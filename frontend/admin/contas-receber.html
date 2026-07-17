@@ -41,7 +41,11 @@
     </div>
     <div class="flex-between">
       <button class="btn btn-ghost" id="btnLimparFiltros">Limpar filtros</button>
-      <button class="btn" id="btnFiltrar">Filtrar</button>
+      <div style="display:flex; gap:0.5rem;">
+        <button class="btn btn-ghost" id="btnExportarExcel">Exportar Excel</button>
+        <button class="btn btn-ghost" id="btnExportarPdf">Exportar PDF</button>
+        <button class="btn" id="btnFiltrar">Filtrar</button>
+      </div>
     </div>
   </div>
 
@@ -232,6 +236,24 @@
   document.getElementById("btnFiltrar").onclick = () => carregar().catch((err) => {
     alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
   });
+
+  async function exportar(botaoId, caminho) {
+    const btn = document.getElementById(botaoId);
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Gerando...";
+    try {
+      await baixarArquivoAdmin(`${caminho}${montarQuery()}`);
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  }
+
+  document.getElementById("btnExportarExcel").onclick = () => exportar("btnExportarExcel", "/contas-receber/exportar/excel");
+  document.getElementById("btnExportarPdf").onclick = () => exportar("btnExportarPdf", "/contas-receber/exportar/pdf");
 
   document.getElementById("btnLimparFiltros").onclick = () => {
     document.getElementById("filtroStatus").value = "";

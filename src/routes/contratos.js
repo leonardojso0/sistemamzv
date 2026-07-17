@@ -29,7 +29,7 @@ router.post("/", async (req, res) => {
   await prisma.movimentacaoCliente.create({
     data: {
       clienteId,
-      descricao: `Contrato criado no plano ${contrato.plano.nome}`,
+      descricao: `Contrato criado no plano ${contrato.plano.nome} (${contrato.plano.velocidade})`,
       realizadoPorId: req.usuario.id,
     },
   });
@@ -64,7 +64,7 @@ router.put("/:id", async (req, res) => {
     await prisma.movimentacaoCliente.create({
       data: {
         clienteId: contrato.clienteId,
-        descricao: `Alteração no contrato: plano trocado de ${contratoAtual.plano.nome} para ${contrato.plano.nome}`,
+        descricao: `Alteração no contrato: plano trocado de ${contratoAtual.plano.nome} (${contratoAtual.plano.velocidade}) para ${contrato.plano.nome} (${contrato.plano.velocidade})`,
         realizadoPorId: req.usuario.id,
       },
     });

@@ -11,7 +11,10 @@
 <template id="page-body">
   <div class="page-header">
     <h2>Clientes</h2>
-    <button class="btn" id="btnNovo">+ Novo cliente</button>
+    <div style="display:flex; gap:0.5rem;">
+      <button class="btn btn-ghost" id="btnExportarClientes">Exportar Excel</button>
+      <button class="btn" id="btnNovo">+ Novo cliente</button>
+    </div>
   </div>
 
   <div id="alertBox"></div>
@@ -166,6 +169,21 @@
       btnSalvar.disabled = false;
     }
   });
+
+  document.getElementById("btnExportarClientes").onclick = async () => {
+    const btn = document.getElementById("btnExportarClientes");
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Gerando...";
+    try {
+      await baixarArquivoAdmin("/clientes/exportar/excel");
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  };
 
   carregarCentrosCusto().catch(() => {});
   carregar();
