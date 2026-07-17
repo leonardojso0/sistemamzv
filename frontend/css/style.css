@@ -67,23 +67,35 @@ p { color: var(--text-muted); margin: 0 0 1rem; }
   text-decoration: none;
 }
 
-.brand-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: #16181d;
-  padding: 0.4rem 0.65rem;
-  border-radius: 8px;
-  line-height: 1;
+.brand-icon { flex-shrink: 0; display: block; }
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
 }
 
-.brand-chip img { display: block; }
+.brand-name {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--primary);
+  letter-spacing: 0.01em;
+}
+
+.brand-name .brand-accent { color: var(--accent); }
 
 .brand-sub {
   font-weight: 700;
   font-size: 0.62rem;
   letter-spacing: 0.14em;
-  color: #9ca3af;
+  color: var(--text-muted);
+}
+
+/* A logo da MZV foi desenhada em branco para fundo escuro; invertida ela
+   fica em tons escuros/coloridos legíveis sobre o fundo claro do sistema. */
+.brand-mzv {
+  display: block;
+  filter: invert(1) hue-rotate(180deg);
 }
 
 .auth-card .brand { justify-content: center; margin-bottom: 1.25rem; }
