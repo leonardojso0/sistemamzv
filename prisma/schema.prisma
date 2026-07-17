@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Autenticação ----------
+
+enum PerfilAdmin {
+  ADMIN
+  FINANCEIRO
+}
+
+model UsuarioAdmin {
+  id        String      @id @default(uuid())
+  nome      String
+  email     String      @unique
+  senhaHash String
+  perfil    PerfilAdmin @default(FINANCEIRO)
+  ativo     Boolean     @default(true)
+  criadoEm  DateTime    @default(now())
+
+  documentosUpload DocumentoCliente[] @relation("UploadPor")
+  boletosUpload    Boleto[]           @relation("UploadPor")
+  contasConfirmadas ContaReceber[]    @relation("ConfirmadoPor")
+}
+
+// ---------- Clientes ----------
+
+enum StatusCliente {
+  ATIVO
+  INADIMPLENTE
+  CANCELADO
+}
+
+model Cliente {
+  id            String        @id @default(uuid())
+  nome          String
+  cpfCnpj       String        @unique
+  email         String?
+  telefone      String?
+  endereco      String?
+  cidade        String?
+  estado        String?
+  cep           String?
+  status        StatusCliente @default(ATIVO)
+  senhaHash     String        // login simples do cliente no portal (por CPF)
+  criadoEm      DateTime      @default(now())
+  atualizadoEm  DateTime      @updatedAt
+
+  documentos    DocumentoCliente[]
+  contratos     Contrato[]
+}
+
+// ---------- Documentos do cliente ----------
+
+enum TipoDocumento {
+  RG_CPF
+  COMPROVANTE_ENDERECO
+  CONTRATO_ASSINADO
+  OUTRO
+}
+
+model DocumentoCliente {
+  id             String        @id @default(uuid())
+  clienteId      String
+  cliente        Cliente       @relation(fields: [clienteId], references: [id])
+  tipo           TipoDocumento
+  nomeArquivo    String
+  urlArquivo     String        // referência no storage (Supabase/S3/R2)
+  uploadPorId    String
+  uploadPor      UsuarioAdmin  @relation("UploadPor", fields: [uploadPorId], references: [id])
+  criadoEm       DateTime      @default(now())
+}
+
+// ---------- Planos ----------
+
+model Plano {
+  id            String     @id @default(uuid())
+  nome          String
+  velocidade    String     // ex: "300 Mega"
+  valorMensal   Decimal    @db.Decimal(10, 2)
+  ativo         Boolean    @default(true)
+
+  contratos     Contrato[]
+}
+
+// ---------- Contratos ----------
+
+enum StatusContrato {
+  ATIVO
+  CANCELADO
+  SUSPENSO
+}
+
+model Contrato {
+  id                 String         @id @default(uuid())
+  clienteId          String
+  cliente            Cliente        @relation(fields: [clienteId], references: [id])
+  planoId            String
+  plano              Plano          @relation(fields: [planoId], references: [id])
+  valorImplantacao   Decimal        @db.Decimal(10, 2) @default(0)
+  dataAssinatura     DateTime?
+  status             StatusContrato @default(ATIVO)
+  criadoEm           DateTime       @default(now())
+
+  boletos            Boleto[]
+  contasReceber      ContaReceber[]
+}
+
+// ---------- Boletos ----------
+
+model Boleto {
+  id             String       @id @default(uuid())
+  contratoId     String
+  contrato       Contrato     @relation(fields: [contratoId], references: [id])
+  mesReferencia  String       // formato "2026-07"
+  nomeArquivo    String
+  urlArquivo     String
+  uploadPorId    String
+  uploadPor      UsuarioAdmin @relation("UploadPor", fields: [uploadPorId], references: [id])
+  criadoEm       DateTime     @default(now())
+
+  contaReceber   ContaReceber?
+}
+
+// ---------- Contas a receber ----------
+
+enum StatusConta {
+  PENDENTE
+  PAGO
+  ATRASADO
+}
+
+enum OrigemConfirmacao {
+  MANUAL
+  AUTOMATICO
+}
+
+model ContaReceber {
+  id                 String             @id @default(uuid())
+  contratoId         String
+  contrato           Contrato           @relation(fields: [contratoId], references: [id])
+  boletoId           String             @unique
+  boleto             Boleto             @relation(fields: [boletoId], references: [id])
+  mesReferencia      String
+  valor              Decimal            @db.Decimal(10, 2)
+  vencimento         DateTime
+  status             StatusConta        @default(PENDENTE)
+  dataPagamento       DateTime?
+  origemConfirmacao  OrigemConfirmacao?
+  confirmadoPorId    String?
+  confirmadoPor      UsuarioAdmin?      @relation("ConfirmadoPor", fields: [confirmadoPorId], references: [id])
+  criadoEm           DateTime           @default(now())
+}
