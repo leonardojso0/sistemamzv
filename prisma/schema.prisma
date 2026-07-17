@@ -21,11 +21,13 @@ model UsuarioAdmin {
   senhaHash String
   perfil    PerfilAdmin @default(FINANCEIRO)
   ativo     Boolean     @default(true)
+  master    Boolean     @default(false) // usuário protegido: não pode ser excluído
   criadoEm  DateTime    @default(now())
 
-  documentosUpload DocumentoCliente[] @relation("UploadPor")
-  boletosUpload    Boleto[]           @relation("UploadPor")
-  contasConfirmadas ContaReceber[]    @relation("ConfirmadoPor")
+  documentosUpload  DocumentoCliente[]   @relation("UploadPor")
+  boletosUpload     Boleto[]             @relation("UploadPor")
+  contasConfirmadas ContaReceber[]       @relation("ConfirmadoPor")
+  movimentacoes     MovimentacaoConta[]  @relation("MovimentacaoPor")
 }
 
 // ---------- Clientes ----------
@@ -155,4 +157,18 @@ model ContaReceber {
   confirmadoPorId    String?
   confirmadoPor      UsuarioAdmin?      @relation("ConfirmadoPor", fields: [confirmadoPorId], references: [id])
   criadoEm           DateTime           @default(now())
+
+  movimentacoes      MovimentacaoConta[]
+}
+
+// ---------- Histórico de movimentações (auditoria) ----------
+
+model MovimentacaoConta {
+  id             String        @id @default(uuid())
+  contaReceberId String
+  contaReceber   ContaReceber  @relation(fields: [contaReceberId], references: [id])
+  descricao      String
+  realizadoPorId String?       // nulo quando a ação é automática (ex: webhook)
+  realizadoPor   UsuarioAdmin? @relation("MovimentacaoPor", fields: [realizadoPorId], references: [id])
+  criadoEm       DateTime      @default(now())
 }

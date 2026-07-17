@@ -48,6 +48,21 @@ function formatData(dataIso) {
   return new Date(dataIso).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
+function brandHtml(href) {
+  const conteudo = `
+    <svg class="brand-icon" width="34" height="34" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="20,2 35,11 35,29 20,38 5,29 5,11" fill="#182848" />
+      <polygon points="20,7 30,13 30,27 20,33 10,27 10,13" fill="none" stroke="#f5a623" stroke-width="2" />
+      <text x="20" y="26" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="16" fill="#ffffff" text-anchor="middle">N</text>
+    </svg>
+    <span class="brand-text">
+      <span class="brand-name">NEX<span class="brand-accent">US</span></span>
+      <span class="brand-sub">CONECTA</span>
+    </span>
+  `;
+  return href ? `<a href="${href}" class="brand">${conteudo}</a>` : `<span class="brand">${conteudo}</span>`;
+}
+
 function mesReferenciaLegivel(mes) {
   if (!mes) return "-";
   const [ano, mesNum] = mes.split("-");

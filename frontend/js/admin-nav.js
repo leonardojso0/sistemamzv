@@ -12,7 +12,7 @@ function renderAdminNav(active) {
     `
     <div class="app-shell">
       <header class="topbar">
-        <div class="topbar-brand">Sistema de Boletos</div>
+        ${brandHtml("dashboard.html")}
         <button class="nav-toggle" id="navToggle" aria-label="Abrir menu">&#9776;</button>
       </header>
       <div class="overlay" id="navOverlay"></div>
@@ -24,6 +24,7 @@ function renderAdminNav(active) {
           <a href="planos.html" data-key="planos">Planos</a>
           <a href="boletos.html" data-key="boletos">Boletos</a>
           <a href="contas-receber.html" data-key="contas">Contas a Receber</a>
+          ${usuario.perfil === "ADMIN" ? '<a href="usuarios.html" data-key="usuarios">Usuários</a>' : ""}
           <div class="nav-user">${usuario.nome || "Admin"}${usuario.perfil ? ` · ${usuario.perfil}` : ""}</div>
           <button id="logoutBtn" class="btn btn-ghost btn-block">Sair</button>
         </nav>

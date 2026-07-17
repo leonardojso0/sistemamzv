@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const multer = require("multer");
 const prisma = require("../lib/prisma");
-const { uploadArquivo } = require("../lib/storage");
+const { uploadArquivo, gerarLinkDownload } = require("../lib/storage");
 const { autenticarAdmin } = require("../middleware/auth");
 
 const router = express.Router();
@@ -78,6 +78,20 @@ router.post("/:id/documentos", upload.single("arquivo"), async (req, res) => {
   });
 
   res.status(201).json(documento);
+});
+
+// Link de download de um documento do cliente
+router.get("/:id/documentos/:documentoId/download", async (req, res) => {
+  const documento = await prisma.documentoCliente.findUnique({
+    where: { id: req.params.documentoId },
+  });
+
+  if (!documento || documento.clienteId !== req.params.id) {
+    return res.status(404).json({ erro: "Documento não encontrado." });
+  }
+
+  const url = await gerarLinkDownload(documento.urlArquivo);
+  res.json({ nomeArquivo: documento.nomeArquivo, url });
 });
 
 module.exports = router;

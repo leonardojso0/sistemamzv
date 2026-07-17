@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Contas a Receber — Sistema de Boletos</title>
+<title>Contas a Receber — NEXUS CONECTA</title>
 <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body>
@@ -16,14 +16,28 @@
   <div id="alertBox"></div>
 
   <div class="card">
-    <div class="field" style="max-width: 240px;">
-      <label>Filtrar por status</label>
-      <select id="filtroStatus">
-        <option value="">Todos</option>
-        <option value="PENDENTE">Pendente</option>
-        <option value="ATRASADO">Atrasado</option>
-        <option value="PAGO">Pago</option>
-      </select>
+    <div class="form-grid cols-3">
+      <div class="field">
+        <label>Status</label>
+        <select id="filtroStatus">
+          <option value="">Todos</option>
+          <option value="PENDENTE">Pendente</option>
+          <option value="ATRASADO">Atrasado</option>
+          <option value="PAGO">Pago</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Vencimento a partir de</label>
+        <input type="date" id="filtroDataInicio" />
+      </div>
+      <div class="field">
+        <label>Vencimento até</label>
+        <input type="date" id="filtroDataFim" />
+      </div>
+    </div>
+    <div class="flex-between">
+      <button class="btn btn-ghost" id="btnLimparFiltros">Limpar filtros</button>
+      <button class="btn" id="btnFiltrar">Filtrar</button>
     </div>
   </div>
 
@@ -35,6 +49,24 @@
   </div>
 </template>
 
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal-card">
+    <div class="flex-between" style="margin-bottom: 1rem;">
+      <h3 id="modalTitulo" style="margin:0;">Lançamento</h3>
+      <button class="modal-close" id="modalFechar">&times;</button>
+    </div>
+
+    <div id="modalAlert"></div>
+    <div id="modalDetalhe" class="text-muted">Carregando...</div>
+
+    <div class="section-title">Ações</div>
+    <div class="card" id="modalAcoes"></div>
+
+    <div class="section-title">Histórico de movimentações</div>
+    <ul class="timeline" id="modalHistorico"><li>Carregando...</li></ul>
+  </div>
+</div>
+
 <script src="../js/config.js"></script>
 <script src="../js/api.js"></script>
 <script src="../js/admin-nav.js"></script>
@@ -43,10 +75,30 @@
   renderAdminNav("contas");
 
   const alertBox = document.getElementById("alertBox");
+  const modalOverlay = document.getElementById("modalOverlay");
+
+  function fecharModal() {
+    modalOverlay.classList.add("hidden");
+  }
+  document.getElementById("modalFechar").onclick = fecharModal;
+  modalOverlay.addEventListener("click", (e) => {
+    if (e.target === modalOverlay) fecharModal();
+  });
+
+  function montarQuery() {
+    const params = new URLSearchParams();
+    const status = document.getElementById("filtroStatus").value;
+    const dataInicio = document.getElementById("filtroDataInicio").value;
+    const dataFim = document.getElementById("filtroDataFim").value;
+    if (status) params.set("status", status);
+    if (dataInicio) params.set("dataInicio", dataInicio);
+    if (dataFim) params.set("dataFim", dataFim);
+    const qs = params.toString();
+    return qs ? `?${qs}` : "";
+  }
 
   async function carregar() {
-    const status = document.getElementById("filtroStatus").value;
-    const contas = await adminApi(`/contas-receber${status ? `?status=${status}` : ""}`);
+    const contas = await adminApi(`/contas-receber${montarQuery()}`);
     const tbody = document.getElementById("tabelaContas");
     tbody.innerHTML = contas.length
       ? contas
@@ -58,29 +110,123 @@
         <td data-label="Valor">${formatMoeda(c.valor)}</td>
         <td data-label="Vencimento">${formatData(c.vencimento)}</td>
         <td data-label="Status">${badgeStatusConta(c.status)}</td>
-        <td data-label="">
-          ${c.status !== "PAGO" ? `<button class="btn" data-pagar="${c.id}">Marcar como pago</button>` : "-"}
-        </td>
+        <td data-label=""><button class="btn btn-ghost" data-abrir="${c.id}">Ver</button></td>
       </tr>`
           )
           .join("")
       : `<tr><td colspan="6"><div class="empty-state">Nenhuma conta encontrada.</div></td></tr>`;
 
-    document.querySelectorAll("[data-pagar]").forEach((btn) => {
-      btn.onclick = async () => {
-        btn.disabled = true;
-        try {
-          await adminApi(`/contas-receber/${btn.dataset.pagar}/pagar`, { method: "PATCH" });
-          carregar();
-        } catch (err) {
-          alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
-          btn.disabled = false;
-        }
-      };
+    document.querySelectorAll("[data-abrir]").forEach((btn) => {
+      btn.onclick = () => abrirModal(btn.dataset.abrir);
     });
   }
 
-  document.getElementById("filtroStatus").addEventListener("change", carregar);
+  async function abrirModal(id) {
+    modalOverlay.classList.remove("hidden");
+    document.getElementById("modalAlert").innerHTML = "";
+    document.getElementById("modalDetalhe").textContent = "Carregando...";
+    document.getElementById("modalAcoes").innerHTML = "";
+    document.getElementById("modalHistorico").innerHTML = "<li>Carregando...</li>";
+
+    try {
+      const [conta, historico] = await Promise.all([
+        adminApi(`/contas-receber/${id}`),
+        adminApi(`/contas-receber/${id}/historico`),
+      ]);
+
+      document.getElementById("modalTitulo").textContent = conta.contrato?.cliente?.nome || "Lançamento";
+
+      document.getElementById("modalDetalhe").innerHTML = `
+        <div class="form-grid cols-2">
+          <div><strong>Mês:</strong> ${mesReferenciaLegivel(conta.mesReferencia)}</div>
+          <div><strong>Valor:</strong> ${formatMoeda(conta.valor)}</div>
+          <div><strong>Vencimento:</strong> ${formatData(conta.vencimento)}</div>
+          <div><strong>Status:</strong> ${badgeStatusConta(conta.status)}</div>
+          <div><strong>Data de pagamento:</strong> ${conta.dataPagamento ? formatData(conta.dataPagamento) : "-"}</div>
+          <div><strong>Confirmado por:</strong> ${conta.confirmadoPor?.nome || "-"}</div>
+        </div>
+      `;
+
+      const acoes = document.getElementById("modalAcoes");
+      acoes.innerHTML = `
+        <div class="form-grid cols-2">
+          <div class="field">
+            <label>${conta.status === "PAGO" ? "Corrigir data de pagamento" : "Marcar como pago em"}</label>
+            <input type="date" id="inputDataPagamento" value="${conta.dataPagamento ? new Date(conta.dataPagamento).toISOString().slice(0, 10) : ""}" />
+          </div>
+          <div class="field" style="display:flex; align-items:flex-end; gap:0.5rem;">
+            <button class="btn btn-block" id="btnConfirmarPagamento">
+              ${conta.status === "PAGO" ? "Salvar nova data" : "Confirmar pagamento"}
+            </button>
+          </div>
+        </div>
+        ${
+          conta.status === "PAGO"
+            ? '<button class="btn btn-ghost btn-block" id="btnReabrir">Reabrir lançamento (desfazer pagamento)</button>'
+            : ""
+        }
+      `;
+
+      document.getElementById("btnConfirmarPagamento").onclick = async () => {
+        const dataPagamento = document.getElementById("inputDataPagamento").value;
+        if (!dataPagamento) {
+          document.getElementById("modalAlert").innerHTML = `<div class="alert alert-error">Selecione uma data.</div>`;
+          return;
+        }
+        try {
+          if (conta.status === "PAGO") {
+            await adminApi(`/contas-receber/${id}/data-pagamento`, { method: "PATCH", body: { dataPagamento } });
+          } else {
+            await adminApi(`/contas-receber/${id}/pagar`, { method: "PATCH", body: { dataPagamento } });
+          }
+          await abrirModal(id);
+          carregar();
+        } catch (err) {
+          document.getElementById("modalAlert").innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+        }
+      };
+
+      const btnReabrir = document.getElementById("btnReabrir");
+      if (btnReabrir) {
+        btnReabrir.onclick = async () => {
+          if (!confirm("Reabrir este lançamento? Ele voltará para pendente.")) return;
+          try {
+            await adminApi(`/contas-receber/${id}/reabrir`, { method: "PATCH" });
+            await abrirModal(id);
+            carregar();
+          } catch (err) {
+            document.getElementById("modalAlert").innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+          }
+        };
+      }
+
+      const listaHistorico = document.getElementById("modalHistorico");
+      listaHistorico.innerHTML = historico.length
+        ? historico
+            .map(
+              (h) => `
+        <li>
+          ${h.descricao}
+          <div class="timeline-meta">${new Date(h.criadoEm).toLocaleString("pt-BR")} — ${h.realizadoPor?.nome || "Sistema"}</div>
+        </li>`
+            )
+            .join("")
+        : "<li>Nenhuma movimentação registrada ainda.</li>";
+    } catch (err) {
+      document.getElementById("modalDetalhe").innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  }
+
+  document.getElementById("btnFiltrar").onclick = () => carregar().catch((err) => {
+    alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  });
+
+  document.getElementById("btnLimparFiltros").onclick = () => {
+    document.getElementById("filtroStatus").value = "";
+    document.getElementById("filtroDataInicio").value = "";
+    document.getElementById("filtroDataFim").value = "";
+    carregar();
+  };
 
   carregar().catch((err) => {
     alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;

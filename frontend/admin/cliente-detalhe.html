@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Detalhe do Cliente — Sistema de Boletos</title>
+<title>Detalhe do Cliente — NEXUS CONECTA</title>
 <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body>
@@ -42,8 +42,8 @@
 
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Tipo</th><th>Arquivo</th><th>Enviado em</th></tr></thead>
-      <tbody id="tabelaDocumentos"><tr><td colspan="3">Carregando...</td></tr></tbody>
+      <thead><tr><th>Tipo</th><th>Arquivo</th><th>Enviado em</th><th></th></tr></thead>
+      <tbody id="tabelaDocumentos"><tr><td colspan="4">Carregando...</td></tr></tbody>
     </table>
   </div>
 
@@ -103,10 +103,27 @@
             <td data-label="Tipo">${tiposDocumento[d.tipo] || d.tipo}</td>
             <td data-label="Arquivo">${d.nomeArquivo}</td>
             <td data-label="Enviado em">${formatData(d.criadoEm)}</td>
+            <td data-label=""><button class="btn btn-ghost" data-baixar-doc="${d.id}">Baixar</button></td>
           </tr>`
             )
             .join("")
-        : `<tr><td colspan="3"><div class="empty-state">Nenhum documento enviado ainda.</div></td></tr>`;
+        : `<tr><td colspan="4"><div class="empty-state">Nenhum documento enviado ainda.</div></td></tr>`;
+
+      document.querySelectorAll("[data-baixar-doc]").forEach((btn) => {
+        btn.onclick = async () => {
+          btn.disabled = true;
+          btn.textContent = "Gerando link...";
+          try {
+            const data = await adminApi(`/clientes/${clienteId}/documentos/${btn.dataset.baixarDoc}/download`);
+            window.open(data.url, "_blank", "noopener");
+          } catch (err) {
+            alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+          } finally {
+            btn.disabled = false;
+            btn.textContent = "Baixar";
+          }
+        };
+      });
 
       const tbodyContratos = document.getElementById("tabelaContratos");
       tbodyContratos.innerHTML = cliente.contratos.length

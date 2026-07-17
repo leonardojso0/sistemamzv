@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Login Admin — Sistema de Boletos</title>
+<title>Login Admin — NEXUS CONECTA</title>
 <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body>
 <div class="auth-page">
   <div class="auth-card">
+    <div id="brandBox"></div>
     <h1>Painel Administrativo</h1>
     <p>Acesso restrito à equipe financeira/admin.</p>
 
@@ -35,6 +36,8 @@
 <script src="../js/config.js"></script>
 <script src="../js/api.js"></script>
 <script>
+  document.getElementById("brandBox").innerHTML = brandHtml();
+
   if (localStorage.getItem(ADMIN_TOKEN_KEY)) {
     window.location.href = "dashboard.html";
   }

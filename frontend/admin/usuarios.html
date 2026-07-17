@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Usuários — NEXUS CONECTA</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<template id="page-body">
+  <div class="page-header">
+    <h2>Usuários</h2>
+    <button class="btn" id="btnNovo">+ Novo usuário</button>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="card" id="formCard" style="display:none;">
+    <h3 id="formTitulo">Novo usuário</h3>
+    <form id="usuarioForm" class="form-grid cols-2">
+      <input type="hidden" id="usuarioId" />
+      <div class="field"><label>Nome</label><input id="nome" required /></div>
+      <div class="field"><label>E-mail</label><input id="email" type="email" required /></div>
+      <div class="field">
+        <label>Nível de permissão</label>
+        <select id="perfil">
+          <option value="FINANCEIRO">Financeiro (uso comum)</option>
+          <option value="ADMIN">Administrador (gerencia usuários)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label id="labelSenha">Senha</label>
+        <input id="senha" type="password" placeholder="Mínimo 6 caracteres" />
+      </div>
+      <div class="field" id="campoAtivo" style="display:none;">
+        <label><input type="checkbox" id="ativo" style="width:auto; margin-right:0.4rem;" checked />Usuário ativo (desmarque para bloquear o acesso)</label>
+      </div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <div class="flex-between">
+          <button type="button" class="btn btn-ghost" id="btnCancelar">Cancelar</button>
+          <button type="submit" class="btn" id="btnSalvar">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Permissão</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tabelaUsuarios"><tr><td colspan="5">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+</template>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/admin-nav.js"></script>
+<script>
+  requireAdminAuth();
+  renderAdminNav("usuarios");
+
+  const alertBox = document.getElementById("alertBox");
+  const meuUsuario = JSON.parse(localStorage.getItem(ADMIN_USER_KEY) || "{}");
+
+  if (meuUsuario.perfil !== "ADMIN") {
+    document.getElementById("pageContent").innerHTML =
+      '<div class="alert alert-error">Apenas administradores podem acessar esta página.</div>';
+  } else {
+    iniciar();
+  }
+
+  function iniciar() {
+    const formCard = document.getElementById("formCard");
+    const form = document.getElementById("usuarioForm");
+
+    function abrirNovo() {
+      form.reset();
+      document.getElementById("usuarioId").value = "";
+      document.getElementById("formTitulo").textContent = "Novo usuário";
+      document.getElementById("labelSenha").textContent = "Senha";
+      document.getElementById("senha").required = true;
+      document.getElementById("campoAtivo").style.display = "none";
+      formCard.style.display = "block";
+      formCard.scrollIntoView({ behavior: "smooth" });
+    }
+
+    function abrirEdicao(usuario) {
+      form.reset();
+      document.getElementById("usuarioId").value = usuario.id;
+      document.getElementById("nome").value = usuario.nome;
+      document.getElementById("email").value = usuario.email;
+      document.getElementById("perfil").value = usuario.perfil;
+      document.getElementById("formTitulo").textContent = `Editar: ${usuario.nome}`;
+      document.getElementById("labelSenha").textContent = "Nova senha (deixe em branco para manter)";
+      document.getElementById("senha").required = false;
+      document.getElementById("ativo").checked = usuario.ativo;
+      document.getElementById("campoAtivo").style.display = usuario.master ? "none" : "block";
+      formCard.style.display = "block";
+      formCard.scrollIntoView({ behavior: "smooth" });
+    }
+
+    document.getElementById("btnNovo").onclick = abrirNovo;
+    document.getElementById("btnCancelar").onclick = () => {
+      formCard.style.display = "none";
+      form.reset();
+    };
+
+    async function carregar() {
+      const usuarios = await adminApi("/usuarios");
+      const tbody = document.getElementById("tabelaUsuarios");
+      tbody.innerHTML = usuarios
+        .map(
+          (u) => `
+        <tr>
+          <td data-label="Nome">${u.nome}${u.master ? ' <span class="badge badge-muted">Master</span>' : ""}</td>
+          <td data-label="E-mail">${u.email}</td>
+          <td data-label="Permissão">${u.perfil === "ADMIN" ? "Administrador" : "Financeiro"}</td>
+          <td data-label="Status">${u.ativo ? '<span class="badge badge-success">Ativo</span>' : '<span class="badge badge-muted">Inativo</span>'}</td>
+          <td data-label="">
+            <button class="btn btn-ghost" data-editar="${u.id}">Editar</button>
+            ${
+              !u.master
+                ? `<button class="btn btn-danger" data-excluir="${u.id}">Excluir</button>`
+                : ""
+            }
+          </td>
+        </tr>`
+        )
+        .join("");
+
+      document.querySelectorAll("[data-editar]").forEach((btn) => {
+        btn.onclick = () => {
+          const usuario = usuarios.find((u) => u.id === btn.dataset.editar);
+          abrirEdicao(usuario);
+        };
+      });
+
+      document.querySelectorAll("[data-excluir]").forEach((btn) => {
+        btn.onclick = async () => {
+          if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
+          try {
+            await adminApi(`/usuarios/${btn.dataset.excluir}`, { method: "DELETE" });
+            carregar();
+          } catch (err) {
+            alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+          }
+        };
+      });
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btnSalvar = document.getElementById("btnSalvar");
+      btnSalvar.disabled = true;
+      const id = document.getElementById("usuarioId").value;
+      const corpo = {
+        nome: document.getElementById("nome").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        perfil: document.getElementById("perfil").value,
+      };
+      const senha = document.getElementById("senha").value;
+      if (senha) corpo.senha = senha;
+
+      try {
+        if (id) {
+          corpo.ativo = document.getElementById("ativo").checked;
+          await adminApi(`/usuarios/${id}`, { method: "PUT", body: corpo });
+        } else {
+          await adminApi("/usuarios", { method: "POST", body: corpo });
+        }
+        formCard.style.display = "none";
+        form.reset();
+        alertBox.innerHTML = `<div class="alert alert-success">Usuário salvo com sucesso.</div>`;
+        carregar();
+      } catch (err) {
+        alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      } finally {
+        btnSalvar.disabled = false;
+      }
+    });
+
+    carregar().catch((err) => {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    });
+  }
+</script>
+</body>
+</html>

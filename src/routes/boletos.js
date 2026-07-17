@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const prisma = require("../lib/prisma");
-const { uploadArquivo } = require("../lib/storage");
+const { uploadArquivo, gerarLinkDownload } = require("../lib/storage");
 const { autenticarAdmin } = require("../middleware/auth");
 
 const router = express.Router();
@@ -49,6 +49,15 @@ router.post("/", upload.single("arquivo"), async (req, res) => {
   });
 
   res.status(201).json(resultado);
+});
+
+// Link de download de um boleto
+router.get("/:id/download", async (req, res) => {
+  const boleto = await prisma.boleto.findUnique({ where: { id: req.params.id } });
+  if (!boleto) return res.status(404).json({ erro: "Boleto não encontrado." });
+
+  const url = await gerarLinkDownload(boleto.urlArquivo);
+  res.json({ nomeArquivo: boleto.nomeArquivo, url });
 });
 
 module.exports = router;

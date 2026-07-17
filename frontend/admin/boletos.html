@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Boletos — Sistema de Boletos</title>
+<title>Boletos — NEXUS CONECTA</title>
 <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body>
@@ -34,8 +34,8 @@
   <div class="section-title">Boletos enviados recentemente</div>
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Cliente</th><th>Mês</th><th>Valor</th><th>Vencimento</th><th>Status</th></tr></thead>
-      <tbody id="tabelaBoletos"><tr><td colspan="5">Carregando...</td></tr></tbody>
+      <thead><tr><th>Cliente</th><th>Mês</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tabelaBoletos"><tr><td colspan="6">Carregando...</td></tr></tbody>
     </table>
   </div>
 </template>
@@ -76,10 +76,27 @@
         <td data-label="Valor">${formatMoeda(c.valor)}</td>
         <td data-label="Vencimento">${formatData(c.vencimento)}</td>
         <td data-label="Status">${badgeStatusConta(c.status)}</td>
+        <td data-label=""><button class="btn btn-ghost" data-baixar-boleto="${c.boleto?.id}">Baixar</button></td>
       </tr>`
           )
           .join("")
-      : `<tr><td colspan="5"><div class="empty-state">Nenhum boleto enviado ainda.</div></td></tr>`;
+      : `<tr><td colspan="6"><div class="empty-state">Nenhum boleto enviado ainda.</div></td></tr>`;
+
+    document.querySelectorAll("[data-baixar-boleto]").forEach((btn) => {
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.textContent = "Gerando link...";
+        try {
+          const data = await adminApi(`/boletos/${btn.dataset.baixarBoleto}/download`);
+          window.open(data.url, "_blank", "noopener");
+        } catch (err) {
+          alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Baixar";
+        }
+      };
+    });
   }
 
   document.getElementById("boletoForm").addEventListener("submit", async (e) => {
