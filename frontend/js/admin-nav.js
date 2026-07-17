@@ -32,8 +32,20 @@ function iconeNav(chave) {
   return `<svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${NAV_ICONS[chave] || ""}</svg>`;
 }
 
+const NAV_HREFS = {
+  dashboard: "dashboard.html",
+  clientes: "clientes.html",
+  contratos: "contratos.html",
+  planos: "planos.html",
+  boletos: "boletos.html",
+  contas: "contas-receber.html",
+  "centro-custo": "centro-custo.html",
+  usuarios: "usuarios.html",
+  configuracoes: "configuracoes.html",
+};
+
 function linkNav(chave, rotulo) {
-  return `<a href="${chave === "dashboard" ? "dashboard.html" : chave === "centro-custo" ? "centro-custo.html" : `${chave}.html`}" data-key="${chave}">${iconeNav(chave)}<span>${rotulo}</span></a>`;
+  return `<a href="${NAV_HREFS[chave]}" data-key="${chave}">${iconeNav(chave)}<span>${rotulo}</span></a>`;
 }
 
 function renderAdminNav(active) {
