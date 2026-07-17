@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portal do Cliente — Sistema de Boletos</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <h1>Portal do Cliente</h1>
+    <p>Acesse com seu CPF/CNPJ para ver contrato e boletos.</p>
+
+    <div id="alertBox"></div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="cpfCnpj">CPF/CNPJ</label>
+        <input type="text" id="cpfCnpj" required autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" required autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn btn-block" id="submitBtn">Entrar</button>
+    </form>
+
+    <div class="auth-switch">
+      É da equipe? <a href="../admin/login.html">Acesse o painel administrativo</a>
+    </div>
+  </div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  if (localStorage.getItem(CLIENTE_TOKEN_KEY)) {
+    window.location.href = "home.html";
+  }
+
+  const form = document.getElementById("loginForm");
+  const alertBox = document.getElementById("alertBox");
+  const submitBtn = document.getElementById("submitBtn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    alertBox.innerHTML = "";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Entrando...";
+
+    try {
+      const data = await apiRequest("/auth/cliente/login", {
+        method: "POST",
+        body: {
+          cpfCnpj: document.getElementById("cpfCnpj").value.trim(),
+          senha: document.getElementById("senha").value,
+        },
+      });
+      localStorage.setItem(CLIENTE_TOKEN_KEY, data.token);
+      localStorage.setItem(CLIENTE_USER_KEY, JSON.stringify(data.cliente));
+      window.location.href = "home.html";
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Entrar";
+    }
+  });
+</script>
+</body>
+</html>

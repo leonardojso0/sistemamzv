@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Meus boletos — Sistema de Boletos</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-brand">Portal do Cliente</div>
+  <button class="btn btn-ghost" id="logoutBtn">Sair</button>
+</header>
+
+<main class="content">
+  <div id="alertBox"></div>
+
+  <div class="card">
+    <div class="flex-between">
+      <div>
+        <h3>Contrato assinado</h3>
+        <p id="contratoInfo">Carregando...</p>
+      </div>
+      <a class="btn" id="btnContrato" style="display:none;" target="_blank" rel="noopener">Baixar contrato</a>
+    </div>
+  </div>
+
+  <div class="section-title">Meus boletos</div>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Mês</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tabelaBoletos"><tr><td colspan="4">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+</main>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script>
+  if (!localStorage.getItem(CLIENTE_TOKEN_KEY)) {
+    window.location.href = "login.html";
+  }
+
+  document.getElementById("logoutBtn").onclick = () => {
+    localStorage.removeItem(CLIENTE_TOKEN_KEY);
+    localStorage.removeItem(CLIENTE_USER_KEY);
+    window.location.href = "login.html";
+  };
+
+  const alertBox = document.getElementById("alertBox");
+
+  async function carregarContrato() {
+    const info = document.getElementById("contratoInfo");
+    const btn = document.getElementById("btnContrato");
+    try {
+      const data = await clienteApi("/portal/contrato");
+      info.textContent = data.nomeArquivo;
+      btn.href = data.url;
+      btn.style.display = "inline-flex";
+    } catch (err) {
+      info.textContent = "Contrato ainda não disponível.";
+    }
+  }
+
+  async function carregarBoletos() {
+    const tbody = document.getElementById("tabelaBoletos");
+    try {
+      const boletos = await clienteApi("/portal/boletos");
+      tbody.innerHTML = boletos.length
+        ? boletos
+            .sort((a, b) => (b.mesReferencia || "").localeCompare(a.mesReferencia || ""))
+            .map(
+              (b) => `
+        <tr>
+          <td data-label="Mês">${mesReferenciaLegivel(b.mesReferencia)}</td>
+          <td data-label="Vencimento">${formatData(b.vencimento)}</td>
+          <td data-label="Status">${badgeStatusConta(b.status)}</td>
+          <td data-label=""><button class="btn btn-ghost" data-baixar="${b.id}">Baixar</button></td>
+        </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="4"><div class="empty-state">Nenhum boleto disponível ainda.</div></td></tr>`;
+
+      document.querySelectorAll("[data-baixar]").forEach((btn) => {
+        btn.onclick = async () => {
+          btn.disabled = true;
+          btn.textContent = "Gerando link...";
+          try {
+            const data = await clienteApi(`/portal/boletos/${btn.dataset.baixar}/download`);
+            window.open(data.url, "_blank", "noopener");
+          } catch (err) {
+            alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+          } finally {
+            btn.disabled = false;
+            btn.textContent = "Baixar";
+          }
+        };
+      });
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  }
+
+  carregarContrato();
+  carregarBoletos();
+</script>
+</body>
+</html>

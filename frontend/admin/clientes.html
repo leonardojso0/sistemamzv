@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Clientes — Sistema de Boletos</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<template id="page-body">
+  <div class="page-header">
+    <h2>Clientes</h2>
+    <button class="btn" id="btnNovo">+ Novo cliente</button>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="card" id="formCard" style="display:none;">
+    <h3 id="formTitulo">Novo cliente</h3>
+    <form id="clienteForm">
+      <div class="form-grid cols-2">
+        <div class="field"><label>Nome completo</label><input id="nome" required /></div>
+        <div class="field"><label>CPF/CNPJ</label><input id="cpfCnpj" required /></div>
+        <div class="field"><label>E-mail</label><input id="email" type="email" /></div>
+        <div class="field"><label>Telefone</label><input id="telefone" /></div>
+        <div class="field"><label>Endereço</label><input id="endereco" /></div>
+        <div class="field"><label>Cidade</label><input id="cidade" /></div>
+        <div class="field"><label>Estado</label><input id="estado" maxlength="2" /></div>
+        <div class="field"><label>CEP</label><input id="cep" /></div>
+        <div class="field"><label>Senha inicial do portal (opcional)</label><input id="senha" placeholder="Padrão: o próprio CPF/CNPJ" /></div>
+      </div>
+      <div class="flex-between">
+        <button type="button" class="btn btn-ghost" id="btnCancelar">Cancelar</button>
+        <button type="submit" class="btn" id="btnSalvar">Salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <input id="busca" placeholder="Buscar por nome ou CPF/CNPJ..." style="margin-bottom:1rem;" />
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nome</th><th>CPF/CNPJ</th><th>Status</th><th>Contratos</th><th></th></tr>
+        </thead>
+        <tbody id="tabelaClientes">
+          <tr><td colspan="5">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/admin-nav.js"></script>
+<script>
+  requireAdminAuth();
+  renderAdminNav("clientes");
+
+  const alertBox = document.getElementById("alertBox");
+  let clientesCache = [];
+
+  const badgeStatusCliente = (status) => {
+    const mapa = {
+      ATIVO: "badge-success",
+      INADIMPLENTE: "badge-danger",
+      CANCELADO: "badge-muted",
+    };
+    return `<span class="badge ${mapa[status] || "badge-muted"}">${status}</span>`;
+  };
+
+  function renderTabela(lista) {
+    const tbody = document.getElementById("tabelaClientes");
+    if (lista.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Nenhum cliente encontrado.</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = lista
+      .map(
+        (c) => `
+      <tr>
+        <td data-label="Nome"><a href="cliente-detalhe.html?id=${c.id}">${c.nome}</a></td>
+        <td data-label="CPF/CNPJ">${c.cpfCnpj}</td>
+        <td data-label="Status">${badgeStatusCliente(c.status)}</td>
+        <td data-label="Contratos">${c.contratos?.length || 0}</td>
+        <td data-label="">
+          <a class="btn btn-ghost" href="cliente-detalhe.html?id=${c.id}">Ver</a>
+        </td>
+      </tr>
+    `
+      )
+      .join("");
+  }
+
+  async function carregar() {
+    try {
+      clientesCache = await adminApi("/clientes");
+      renderTabela(clientesCache);
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  }
+
+  document.getElementById("busca").addEventListener("input", (e) => {
+    const termo = e.target.value.trim().toLowerCase();
+    renderTabela(
+      clientesCache.filter(
+        (c) => c.nome.toLowerCase().includes(termo) || c.cpfCnpj.toLowerCase().includes(termo)
+      )
+    );
+  });
+
+  const formCard = document.getElementById("formCard");
+  document.getElementById("btnNovo").onclick = () => {
+    formCard.style.display = "block";
+    formCard.scrollIntoView({ behavior: "smooth" });
+  };
+  document.getElementById("btnCancelar").onclick = () => {
+    formCard.style.display = "none";
+    document.getElementById("clienteForm").reset();
+  };
+
+  document.getElementById("clienteForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btnSalvar = document.getElementById("btnSalvar");
+    btnSalvar.disabled = true;
+    alertBox.innerHTML = "";
+    try {
+      await adminApi("/clientes", {
+        method: "POST",
+        body: {
+          nome: document.getElementById("nome").value.trim(),
+          cpfCnpj: document.getElementById("cpfCnpj").value.trim(),
+          email: document.getElementById("email").value.trim() || undefined,
+          telefone: document.getElementById("telefone").value.trim() || undefined,
+          endereco: document.getElementById("endereco").value.trim() || undefined,
+          cidade: document.getElementById("cidade").value.trim() || undefined,
+          estado: document.getElementById("estado").value.trim() || undefined,
+          cep: document.getElementById("cep").value.trim() || undefined,
+          senha: document.getElementById("senha").value.trim() || undefined,
+        },
+      });
+      document.getElementById("clienteForm").reset();
+      formCard.style.display = "none";
+      alertBox.innerHTML = `<div class="alert alert-success">Cliente cadastrado com sucesso.</div>`;
+      carregar();
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btnSalvar.disabled = false;
+    }
+  });
+
+  carregar();
+</script>
+</body>
+</html>

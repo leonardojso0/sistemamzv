@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contas a Receber — Sistema de Boletos</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<template id="page-body">
+  <div class="page-header">
+    <h2>Contas a receber</h2>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="card">
+    <div class="field" style="max-width: 240px;">
+      <label>Filtrar por status</label>
+      <select id="filtroStatus">
+        <option value="">Todos</option>
+        <option value="PENDENTE">Pendente</option>
+        <option value="ATRASADO">Atrasado</option>
+        <option value="PAGO">Pago</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Cliente</th><th>Mês</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tabelaContas"><tr><td colspan="6">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+</template>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/admin-nav.js"></script>
+<script>
+  requireAdminAuth();
+  renderAdminNav("contas");
+
+  const alertBox = document.getElementById("alertBox");
+
+  async function carregar() {
+    const status = document.getElementById("filtroStatus").value;
+    const contas = await adminApi(`/contas-receber${status ? `?status=${status}` : ""}`);
+    const tbody = document.getElementById("tabelaContas");
+    tbody.innerHTML = contas.length
+      ? contas
+          .map(
+            (c) => `
+      <tr>
+        <td data-label="Cliente">${c.contrato?.cliente?.nome || "-"}</td>
+        <td data-label="Mês">${mesReferenciaLegivel(c.mesReferencia)}</td>
+        <td data-label="Valor">${formatMoeda(c.valor)}</td>
+        <td data-label="Vencimento">${formatData(c.vencimento)}</td>
+        <td data-label="Status">${badgeStatusConta(c.status)}</td>
+        <td data-label="">
+          ${c.status !== "PAGO" ? `<button class="btn" data-pagar="${c.id}">Marcar como pago</button>` : "-"}
+        </td>
+      </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="6"><div class="empty-state">Nenhuma conta encontrada.</div></td></tr>`;
+
+    document.querySelectorAll("[data-pagar]").forEach((btn) => {
+      btn.onclick = async () => {
+        btn.disabled = true;
+        try {
+          await adminApi(`/contas-receber/${btn.dataset.pagar}/pagar`, { method: "PATCH" });
+          carregar();
+        } catch (err) {
+          alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+          btn.disabled = false;
+        }
+      };
+    });
+  }
+
+  document.getElementById("filtroStatus").addEventListener("change", carregar);
+
+  carregar().catch((err) => {
+    alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  });
+</script>
+</body>
+</html>

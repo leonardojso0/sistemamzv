@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Início — Sistema de Boletos</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<template id="page-body">
+  <div class="page-header">
+    <h2>Visão geral</h2>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="form-grid cols-3" id="cards">
+    <div class="card">
+      <div class="text-muted">Clientes ativos</div>
+      <h1 id="statClientes">–</h1>
+    </div>
+    <div class="card">
+      <div class="text-muted">Contratos ativos</div>
+      <h1 id="statContratos">–</h1>
+    </div>
+    <div class="card">
+      <div class="text-muted">Contas pendentes</div>
+      <h1 id="statPendentes">–</h1>
+    </div>
+  </div>
+
+  <div class="section-title">Contas a vencer em breve</div>
+  <div class="card table-wrap">
+    <table>
+      <thead>
+        <tr><th>Cliente</th><th>Mês</th><th>Valor</th><th>Vencimento</th><th>Status</th></tr>
+      </thead>
+      <tbody id="tabelaContas">
+        <tr><td colspan="5">Carregando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/admin-nav.js"></script>
+<script>
+  requireAdminAuth();
+  renderAdminNav("dashboard");
+
+  async function carregar() {
+    const alertBox = document.getElementById("alertBox");
+    try {
+      const [clientes, contratos, contas] = await Promise.all([
+        adminApi("/clientes"),
+        adminApi("/contratos"),
+        adminApi("/contas-receber"),
+      ]);
+
+      document.getElementById("statClientes").textContent = clientes.filter((c) => c.status === "ATIVO").length;
+      document.getElementById("statContratos").textContent = contratos.filter((c) => c.status === "ATIVO").length;
+      document.getElementById("statPendentes").textContent = contas.filter((c) => c.status !== "PAGO").length;
+
+      const pendentes = contas
+        .filter((c) => c.status !== "PAGO")
+        .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento))
+        .slice(0, 8);
+
+      const tbody = document.getElementById("tabelaContas");
+      if (pendentes.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Nenhuma conta pendente.</div></td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = pendentes
+        .map(
+          (c) => `
+        <tr>
+          <td data-label="Cliente">${c.contrato?.cliente?.nome || "-"}</td>
+          <td data-label="Mês">${mesReferenciaLegivel(c.mesReferencia)}</td>
+          <td data-label="Valor">${formatMoeda(c.valor)}</td>
+          <td data-label="Vencimento">${formatData(c.vencimento)}</td>
+          <td data-label="Status">${badgeStatusConta(c.status)}</td>
+        </tr>
+      `
+        )
+        .join("");
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  }
+
+  carregar();
+</script>
+</body>
+</html>

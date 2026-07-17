@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planos — Sistema de Boletos</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<template id="page-body">
+  <div class="page-header">
+    <h2>Planos</h2>
+    <button class="btn" id="btnNovo">+ Novo plano</button>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="card" id="formCard" style="display:none;">
+    <h3>Novo plano</h3>
+    <form id="planoForm" class="form-grid cols-3">
+      <div class="field"><label>Nome</label><input id="nome" required /></div>
+      <div class="field"><label>Velocidade</label><input id="velocidade" placeholder="Ex: 300 Mega" required /></div>
+      <div class="field"><label>Valor mensal (R$)</label><input id="valorMensal" type="number" step="0.01" min="0" required /></div>
+      <div class="field" style="grid-column: 1 / -1;" class="flex-between">
+        <button type="button" class="btn btn-ghost" id="btnCancelar">Cancelar</button>
+        <button type="submit" class="btn" id="btnSalvar">Salvar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Nome</th><th>Velocidade</th><th>Valor mensal</th><th>Ativo</th><th></th></tr></thead>
+      <tbody id="tabelaPlanos"><tr><td colspan="5">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+</template>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/admin-nav.js"></script>
+<script>
+  requireAdminAuth();
+  renderAdminNav("planos");
+
+  const alertBox = document.getElementById("alertBox");
+
+  async function carregar() {
+    try {
+      const planos = await adminApi("/planos");
+      const tbody = document.getElementById("tabelaPlanos");
+      tbody.innerHTML = planos.length
+        ? planos
+            .map(
+              (p) => `
+        <tr>
+          <td data-label="Nome">${p.nome}</td>
+          <td data-label="Velocidade">${p.velocidade}</td>
+          <td data-label="Valor mensal">${formatMoeda(p.valorMensal)}</td>
+          <td data-label="Ativo">${p.ativo ? '<span class="badge badge-success">Sim</span>' : '<span class="badge badge-muted">Não</span>'}</td>
+          <td data-label="">
+            <button class="btn btn-ghost" data-toggle="${p.id}" data-ativo="${p.ativo}">${p.ativo ? "Desativar" : "Ativar"}</button>
+          </td>
+        </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="5"><div class="empty-state">Nenhum plano cadastrado.</div></td></tr>`;
+
+      document.querySelectorAll("[data-toggle]").forEach((btn) => {
+        btn.onclick = async () => {
+          try {
+            await adminApi(`/planos/${btn.dataset.toggle}`, {
+              method: "PUT",
+              body: { ativo: btn.dataset.ativo !== "true" },
+            });
+            carregar();
+          } catch (err) {
+            alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+          }
+        };
+      });
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  }
+
+  const formCard = document.getElementById("formCard");
+  document.getElementById("btnNovo").onclick = () => {
+    formCard.style.display = "block";
+    formCard.scrollIntoView({ behavior: "smooth" });
+  };
+  document.getElementById("btnCancelar").onclick = () => {
+    formCard.style.display = "none";
+    document.getElementById("planoForm").reset();
+  };
+
+  document.getElementById("planoForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btnSalvar = document.getElementById("btnSalvar");
+    btnSalvar.disabled = true;
+    try {
+      await adminApi("/planos", {
+        method: "POST",
+        body: {
+          nome: document.getElementById("nome").value.trim(),
+          velocidade: document.getElementById("velocidade").value.trim(),
+          valorMensal: parseFloat(document.getElementById("valorMensal").value),
+        },
+      });
+      document.getElementById("planoForm").reset();
+      formCard.style.display = "none";
+      alertBox.innerHTML = `<div class="alert alert-success">Plano cadastrado.</div>`;
+      carregar();
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btnSalvar.disabled = false;
+    }
+  });
+
+  carregar();
+</script>
+</body>
+</html>

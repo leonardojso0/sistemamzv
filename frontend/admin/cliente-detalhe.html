@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Detalhe do Cliente — Sistema de Boletos</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<template id="page-body">
+  <div class="page-header">
+    <h2 id="tituloCliente">Cliente</h2>
+    <a href="clientes.html" class="btn btn-ghost">&larr; Voltar</a>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="card" id="dadosCard">Carregando...</div>
+
+  <div class="section-title">Documentos</div>
+  <div class="card">
+    <form id="uploadForm" class="form-grid cols-3">
+      <div class="field">
+        <label>Tipo de documento</label>
+        <select id="tipoDocumento" required>
+          <option value="RG_CPF">RG/CPF</option>
+          <option value="COMPROVANTE_ENDERECO">Comprovante de endereço</option>
+          <option value="CONTRATO_ASSINADO">Contrato assinado</option>
+          <option value="OUTRO">Outro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Arquivo</label>
+        <input type="file" id="arquivoDocumento" required />
+      </div>
+      <div class="field" style="display:flex; align-items:flex-end;">
+        <button type="submit" class="btn btn-block" id="btnUpload">Enviar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Tipo</th><th>Arquivo</th><th>Enviado em</th></tr></thead>
+      <tbody id="tabelaDocumentos"><tr><td colspan="3">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section-title">Contratos</div>
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Plano</th><th>Status</th><th>Assinatura</th><th>Contas a receber</th></tr></thead>
+      <tbody id="tabelaContratos"><tr><td colspan="4">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+</template>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/admin-nav.js"></script>
+<script>
+  requireAdminAuth();
+  renderAdminNav("clientes");
+
+  const alertBox = document.getElementById("alertBox");
+  const params = new URLSearchParams(window.location.search);
+  const clienteId = params.get("id");
+
+  const tiposDocumento = {
+    RG_CPF: "RG/CPF",
+    COMPROVANTE_ENDERECO: "Comprovante de endereço",
+    CONTRATO_ASSINADO: "Contrato assinado",
+    OUTRO: "Outro",
+  };
+
+  if (!clienteId) {
+    alertBox.innerHTML = `<div class="alert alert-error">Cliente não informado.</div>`;
+  }
+
+  async function carregar() {
+    try {
+      const cliente = await adminApi(`/clientes/${clienteId}`);
+      document.getElementById("tituloCliente").textContent = cliente.nome;
+
+      document.getElementById("dadosCard").innerHTML = `
+        <div class="form-grid cols-2">
+          <div><strong>CPF/CNPJ:</strong> ${cliente.cpfCnpj}</div>
+          <div><strong>Status:</strong> ${cliente.status}</div>
+          <div><strong>E-mail:</strong> ${cliente.email || "-"}</div>
+          <div><strong>Telefone:</strong> ${cliente.telefone || "-"}</div>
+          <div><strong>Endereço:</strong> ${cliente.endereco || "-"}</div>
+          <div><strong>Cidade/UF:</strong> ${cliente.cidade || "-"}/${cliente.estado || "-"}</div>
+        </div>
+      `;
+
+      const tbodyDocs = document.getElementById("tabelaDocumentos");
+      tbodyDocs.innerHTML = cliente.documentos.length
+        ? cliente.documentos
+            .map(
+              (d) => `
+          <tr>
+            <td data-label="Tipo">${tiposDocumento[d.tipo] || d.tipo}</td>
+            <td data-label="Arquivo">${d.nomeArquivo}</td>
+            <td data-label="Enviado em">${formatData(d.criadoEm)}</td>
+          </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="3"><div class="empty-state">Nenhum documento enviado ainda.</div></td></tr>`;
+
+      const tbodyContratos = document.getElementById("tabelaContratos");
+      tbodyContratos.innerHTML = cliente.contratos.length
+        ? cliente.contratos
+            .map(
+              (c) => `
+          <tr>
+            <td data-label="Plano">${c.plano.nome} (${c.plano.velocidade})</td>
+            <td data-label="Status">${c.status}</td>
+            <td data-label="Assinatura">${formatData(c.dataAssinatura)}</td>
+            <td data-label="Contas a receber">${c.contasReceber?.length || 0}</td>
+          </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="4"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  }
+
+  document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btnUpload = document.getElementById("btnUpload");
+    const arquivo = document.getElementById("arquivoDocumento").files[0];
+    if (!arquivo) return;
+
+    const formData = new FormData();
+    formData.append("tipo", document.getElementById("tipoDocumento").value);
+    formData.append("arquivo", arquivo);
+
+    btnUpload.disabled = true;
+    btnUpload.textContent = "Enviando...";
+    try {
+      await adminApi(`/clientes/${clienteId}/documentos`, {
+        method: "POST",
+        body: formData,
+        isFormData: true,
+      });
+      document.getElementById("uploadForm").reset();
+      alertBox.innerHTML = `<div class="alert alert-success">Documento enviado com sucesso.</div>`;
+      carregar();
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btnUpload.disabled = false;
+      btnUpload.textContent = "Enviar";
+    }
+  });
+
+  if (clienteId) carregar();
+</script>
+</body>
+</html>
