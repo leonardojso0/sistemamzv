@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
 :root {
   --primary: #182848;
   --primary-dark: #0e1a33;
@@ -5,6 +7,8 @@
   --accent-dark: #d98f10;
   --bg: #f4f6f9;
   --surface: #ffffff;
+  --dark-card: #14161c;
+  --dark-card-2: #1c1f27;
   --text: #1f2937;
   --text-muted: #6b7280;
   --border: #e5e7eb;
@@ -24,7 +28,7 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -158,14 +162,30 @@ p { color: var(--text-muted); margin: 0 0 1rem; }
 }
 
 .sidenav a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
   color: var(--text);
-  padding: 0.6rem 0.75rem;
+  padding: 0.55rem 0.75rem;
   border-radius: var(--radius);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
+
+.sidenav a .nav-icon { flex-shrink: 0; color: var(--text-muted); }
 
 .sidenav a:hover { background: var(--bg); }
 .sidenav a.active { background: var(--primary); color: #fff; }
+.sidenav a.active .nav-icon { color: #fff; }
+
+.nav-group-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0.9rem 0.75rem 0.2rem;
+}
 
 .nav-user {
   margin-top: auto;
@@ -185,6 +205,126 @@ p { color: var(--text-muted); margin: 0 0 1rem; }
 
 @media (min-width: 900px) {
   .content { padding: 1.75rem 2rem; }
+}
+
+.breadcrumb {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.breadcrumb span { margin: 0 0.35rem; }
+.breadcrumb strong { color: var(--text); font-weight: 600; }
+
+/* ---------- Cards de ação rápida (dashboard) ---------- */
+
+.quick-actions {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.quick-action-card {
+  flex: 0 0 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+  box-shadow: var(--shadow);
+}
+
+.quick-action-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.quick-action-card h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+}
+
+.quick-action-card p {
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.quick-action-card a {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ---------- Resumo escuro com valores ocultáveis ---------- */
+
+.resumo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.dark-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 720px) {
+  .dark-cards { grid-template-columns: 1fr 1fr; }
+}
+
+.dark-card {
+  background: var(--dark-card);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.dark-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #cbd5e1;
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+
+.dark-card-metric { margin-bottom: 0.5rem; }
+
+.dark-card-metric .label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-bottom: 0.15rem;
+}
+
+.dark-card-metric .value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.valor-oculto { filter: blur(6px); user-select: none; }
+
+.btn-toggle-valores {
+  background: var(--dark-card-2);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .page-header {

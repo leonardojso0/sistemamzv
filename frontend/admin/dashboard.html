@@ -9,24 +9,62 @@
 <body>
 
 <template id="page-body">
-  <div class="page-header">
-    <h2>Visão geral</h2>
-  </div>
-
   <div id="alertBox"></div>
 
-  <div class="form-grid cols-3" id="cards">
-    <div class="card">
-      <div class="text-muted">Clientes ativos</div>
-      <h1 id="statClientes">–</h1>
+  <div class="quick-actions">
+    <div class="quick-action-card">
+      <div class="quick-action-icon"></div>
+      <h4>Novo cliente</h4>
+      <p>Cadastre um cliente e gerencie documentos e contratos.</p>
+      <a href="clientes.html">Cadastrar &rarr;</a>
     </div>
-    <div class="card">
-      <div class="text-muted">Contratos ativos</div>
-      <h1 id="statContratos">–</h1>
+    <div class="quick-action-card">
+      <div class="quick-action-icon"></div>
+      <h4>Enviar boleto</h4>
+      <p>Envie um boleto e gere a conta a receber automaticamente.</p>
+      <a href="boletos.html">Enviar &rarr;</a>
     </div>
-    <div class="card">
-      <div class="text-muted">Contas pendentes</div>
-      <h1 id="statPendentes">–</h1>
+    <div class="quick-action-card">
+      <div class="quick-action-icon"></div>
+      <h4>Centro de custo</h4>
+      <p>Organize clientes por unidade ou departamento.</p>
+      <a href="centro-custo.html">Gerenciar &rarr;</a>
+    </div>
+    <div class="quick-action-card">
+      <div class="quick-action-icon"></div>
+      <h4>Contas a receber</h4>
+      <p>Acompanhe pagamentos, atrasos e histórico.</p>
+      <a href="contas-receber.html">Ver contas &rarr;</a>
+    </div>
+  </div>
+
+  <div class="resumo-header">
+    <h3 style="margin:0;">Resumo diário</h3>
+    <button class="btn-toggle-valores" id="btnToggleValores">👁 Ocultar valores</button>
+  </div>
+
+  <div class="dark-cards">
+    <div class="dark-card">
+      <div class="dark-card-header">Contas a receber</div>
+      <div class="dark-card-metric">
+        <div class="label">Total em aberto</div>
+        <div class="value valores" id="valorEmAberto">–</div>
+      </div>
+      <div class="dark-card-metric">
+        <div class="label">Vencendo hoje</div>
+        <div class="value valores" id="valorVencendoHoje" style="font-size:1rem;">–</div>
+      </div>
+    </div>
+    <div class="dark-card">
+      <div class="dark-card-header">Clientes e contratos</div>
+      <div class="dark-card-metric">
+        <div class="label">Clientes ativos</div>
+        <div class="value valores" id="statClientes">–</div>
+      </div>
+      <div class="dark-card-metric">
+        <div class="label">Contratos ativos</div>
+        <div class="value valores" id="statContratos" style="font-size:1rem;">–</div>
+      </div>
     </div>
   </div>
 
@@ -50,6 +88,18 @@
   requireAdminAuth();
   renderAdminNav("dashboard");
 
+  document.querySelectorAll(".quick-action-icon").forEach((el, i) => {
+    const chaves = ["clientes", "boletos", "centro-custo", "contas"];
+    el.innerHTML = iconeNav(chaves[i]);
+  });
+
+  let valoresOcultos = false;
+  document.getElementById("btnToggleValores").onclick = () => {
+    valoresOcultos = !valoresOcultos;
+    document.querySelectorAll(".valores").forEach((el) => el.classList.toggle("valor-oculto", valoresOcultos));
+    document.getElementById("btnToggleValores").textContent = valoresOcultos ? "👁 Mostrar valores" : "👁 Ocultar valores";
+  };
+
   async function carregar() {
     const alertBox = document.getElementById("alertBox");
     try {
@@ -61,12 +111,19 @@
 
       document.getElementById("statClientes").textContent = clientes.filter((c) => c.status === "ATIVO").length;
       document.getElementById("statContratos").textContent = contratos.filter((c) => c.status === "ATIVO").length;
-      document.getElementById("statPendentes").textContent = contas.filter((c) => c.status !== "PAGO").length;
 
-      const pendentes = contas
-        .filter((c) => c.status !== "PAGO")
-        .sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento))
-        .slice(0, 8);
+      const emAberto = contas.filter((c) => c.status !== "PAGO");
+      const totalEmAberto = emAberto.reduce((soma, c) => soma + Number(c.valor), 0);
+
+      const hojeStr = new Date().toISOString().slice(0, 10);
+      const vencendoHoje = emAberto.filter((c) => new Date(c.vencimento).toISOString().slice(0, 10) === hojeStr);
+      const totalVencendoHoje = vencendoHoje.reduce((soma, c) => soma + Number(c.valor), 0);
+
+      document.getElementById("valorEmAberto").textContent = formatMoeda(totalEmAberto);
+      document.getElementById("valorVencendoHoje").textContent =
+        vencendoHoje.length > 0 ? `${formatMoeda(totalVencendoHoje)} (${vencendoHoje.length})` : "Nenhum vencimento hoje";
+
+      const pendentes = emAberto.sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento)).slice(0, 8);
 
       const tbody = document.getElementById("tabelaContas");
       if (pendentes.length === 0) {
