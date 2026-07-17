@@ -3,6 +3,12 @@ const ADMIN_USER_KEY = "boletos_admin_usuario";
 const CLIENTE_TOKEN_KEY = "boletos_cliente_token";
 const CLIENTE_USER_KEY = "boletos_cliente_dados";
 
+const ATRASOS_RETRY_MS = [3000, 6000]; // tenta de novo antes de desistir (ex: back-end "acordando" no plano free do Render)
+
+function esperar(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function apiRequest(path, { method = "GET", body, isFormData = false, tokenKey } = {}) {
   const headers = {};
   const token = tokenKey ? localStorage.getItem(tokenKey) : null;
@@ -10,14 +16,23 @@ async function apiRequest(path, { method = "GET", body, isFormData = false, toke
   if (!isFormData && body !== undefined) headers["Content-Type"] = "application/json";
 
   let res;
-  try {
-    res = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      headers,
-      body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  } catch (e) {
-    throw new Error("Não foi possível conectar à API. Verifique sua conexão ou tente novamente.");
+  let ultimoErro;
+  for (let tentativa = 0; tentativa <= ATRASOS_RETRY_MS.length; tentativa++) {
+    try {
+      res = await fetch(`${API_BASE_URL}${path}`, {
+        method,
+        headers,
+        body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
+      });
+      ultimoErro = null;
+      break;
+    } catch (e) {
+      ultimoErro = e;
+      if (tentativa < ATRASOS_RETRY_MS.length) await esperar(ATRASOS_RETRY_MS[tentativa]);
+    }
+  }
+  if (ultimoErro) {
+    throw new Error("Não foi possível conectar à API. O servidor pode estar iniciando — tente novamente em alguns segundos.");
   }
 
   let data = null;

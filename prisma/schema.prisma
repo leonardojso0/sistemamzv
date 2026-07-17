@@ -181,6 +181,7 @@ model ContaReceber {
   boletoId           String             @unique
   boleto             Boleto             @relation(fields: [boletoId], references: [id])
   mesReferencia      String
+  descricao          String?            // histórico customizado; se vazio, é gerado a partir do plano
   valor              Decimal            @db.Decimal(10, 2)
   vencimento         DateTime
   status             StatusConta        @default(PENDENTE)

@@ -82,12 +82,65 @@ router.get("/:id", async (req, res) => {
   const conta = await prisma.contaReceber.findUnique({
     where: { id: req.params.id },
     include: {
-      contrato: { include: { cliente: true, plano: true } },
+      contrato: { include: { cliente: { include: { centroCusto: true } }, plano: true } },
       boleto: true,
       confirmadoPor: { select: { id: true, nome: true } },
     },
   });
   if (!conta) return res.status(404).json({ erro: "Conta não encontrada." });
+  res.json(conta);
+});
+
+// Edita os detalhes do lançamento: histórico (descrição), competência, vencimento e valor
+router.patch("/:id/detalhes", async (req, res) => {
+  const { descricao, mesReferencia, vencimento, valor } = req.body;
+
+  const contaAtual = await prisma.contaReceber.findUnique({ where: { id: req.params.id } });
+  if (!contaAtual) return res.status(404).json({ erro: "Conta não encontrada." });
+
+  const dados = {};
+  const mudancas = [];
+
+  if (descricao !== undefined && descricao !== (contaAtual.descricao || "")) {
+    dados.descricao = descricao || null;
+    mudancas.push("histórico");
+  }
+  if (mesReferencia !== undefined && mesReferencia !== contaAtual.mesReferencia) {
+    dados.mesReferencia = mesReferencia;
+    mudancas.push("competência");
+  }
+  if (vencimento !== undefined) {
+    const novoVencimento = new Date(`${vencimento}T00:00:00.000Z`);
+    if (novoVencimento.getTime() !== new Date(contaAtual.vencimento).getTime()) {
+      dados.vencimento = novoVencimento;
+      mudancas.push("vencimento");
+    }
+  }
+  if (valor !== undefined && Number(valor) !== Number(contaAtual.valor)) {
+    dados.valor = valor;
+    mudancas.push("valor");
+  }
+
+  const conta = await prisma.$transaction(async (tx) => {
+    const atualizada = await tx.contaReceber.update({
+      where: { id: req.params.id },
+      data: dados,
+      include: { contrato: { include: { cliente: { include: { centroCusto: true } }, plano: true } } },
+    });
+
+    if (mudancas.length) {
+      await tx.movimentacaoConta.create({
+        data: {
+          contaReceberId: req.params.id,
+          descricao: `Lançamento editado (${mudancas.join(", ")})`,
+          realizadoPorId: req.usuario.id,
+        },
+      });
+    }
+
+    return atualizada;
+  });
+
   res.json(conta);
 });
 
