@@ -31,4 +31,9 @@ async function gerarLinkDownload(caminhoArquivo, expiraEmSegundos = 300) {
   return data.signedUrl;
 }
 
-module.exports = { uploadArquivo, gerarLinkDownload };
+async function excluirArquivo(caminhoArquivo) {
+  const { error } = await supabase.storage.from(BUCKET).remove([caminhoArquivo]);
+  if (error) throw new Error(`Falha ao excluir arquivo: ${error.message}`);
+}
+
+module.exports = { uploadArquivo, gerarLinkDownload, excluirArquivo };

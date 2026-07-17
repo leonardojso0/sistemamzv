@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Centro de Custo — NEXUS CONECTA</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<template id="page-body">
+  <div class="page-header">
+    <h2>Centro de custo</h2>
+    <button class="btn" id="btnNovo">+ Novo centro de custo</button>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="card" id="formCard" style="display:none;">
+    <h3 id="formTitulo">Novo centro de custo</h3>
+    <form id="centroForm" class="form-grid cols-2">
+      <input type="hidden" id="centroId" />
+      <div class="field"><label>Nomenclatura</label><input id="nome" required /></div>
+      <div class="field"><label>Número</label><input id="numero" required /></div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <div class="flex-between">
+          <button type="button" class="btn btn-ghost" id="btnCancelar">Cancelar</button>
+          <button type="submit" class="btn" id="btnSalvar">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="card table-wrap">
+    <table>
+      <thead><tr><th>Nomenclatura</th><th>Número</th><th>Status</th><th></th></tr></thead>
+      <tbody id="tabelaCentros"><tr><td colspan="4">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+</template>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/admin-nav.js"></script>
+<script>
+  requireAdminAuth();
+  renderAdminNav("centro-custo");
+
+  const alertBox = document.getElementById("alertBox");
+  const formCard = document.getElementById("formCard");
+  const form = document.getElementById("centroForm");
+
+  function abrirNovo() {
+    form.reset();
+    document.getElementById("centroId").value = "";
+    document.getElementById("formTitulo").textContent = "Novo centro de custo";
+    formCard.style.display = "block";
+    formCard.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function abrirEdicao(centro) {
+    document.getElementById("centroId").value = centro.id;
+    document.getElementById("nome").value = centro.nome;
+    document.getElementById("numero").value = centro.numero;
+    document.getElementById("formTitulo").textContent = `Editar: ${centro.nome}`;
+    formCard.style.display = "block";
+    formCard.scrollIntoView({ behavior: "smooth" });
+  }
+
+  document.getElementById("btnNovo").onclick = abrirNovo;
+  document.getElementById("btnCancelar").onclick = () => {
+    formCard.style.display = "none";
+    form.reset();
+  };
+
+  async function carregar() {
+    const centros = await adminApi("/centro-custo");
+    const tbody = document.getElementById("tabelaCentros");
+    tbody.innerHTML = centros.length
+      ? centros
+          .map(
+            (c) => `
+      <tr>
+        <td data-label="Nomenclatura">${c.nome}</td>
+        <td data-label="Número">${c.numero}</td>
+        <td data-label="Status">${c.ativo ? '<span class="badge badge-success">Ativo</span>' : '<span class="badge badge-muted">Inativo</span>'}</td>
+        <td data-label="">
+          <button class="btn btn-ghost" data-editar="${c.id}">Editar</button>
+          <button class="btn btn-ghost" data-toggle="${c.id}" data-ativo="${c.ativo}">${c.ativo ? "Desativar" : "Ativar"}</button>
+        </td>
+      </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="4"><div class="empty-state">Nenhum centro de custo cadastrado.</div></td></tr>`;
+
+    document.querySelectorAll("[data-editar]").forEach((btn) => {
+      btn.onclick = () => abrirEdicao(centros.find((c) => c.id === btn.dataset.editar));
+    });
+
+    document.querySelectorAll("[data-toggle]").forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          await adminApi(`/centro-custo/${btn.dataset.toggle}`, {
+            method: "PUT",
+            body: { ativo: btn.dataset.ativo !== "true" },
+          });
+          carregar();
+        } catch (err) {
+          alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+        }
+      };
+    });
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btnSalvar = document.getElementById("btnSalvar");
+    btnSalvar.disabled = true;
+    const id = document.getElementById("centroId").value;
+    const corpo = {
+      nome: document.getElementById("nome").value.trim(),
+      numero: document.getElementById("numero").value.trim(),
+    };
+    try {
+      if (id) {
+        await adminApi(`/centro-custo/${id}`, { method: "PUT", body: corpo });
+      } else {
+        await adminApi("/centro-custo", { method: "POST", body: corpo });
+      }
+      formCard.style.display = "none";
+      form.reset();
+      alertBox.innerHTML = `<div class="alert alert-success">Centro de custo salvo com sucesso.</div>`;
+      carregar();
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btnSalvar.disabled = false;
+    }
+  });
+
+  carregar().catch((err) => {
+    alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  });
+</script>
+</body>
+</html>

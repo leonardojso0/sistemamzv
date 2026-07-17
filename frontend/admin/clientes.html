@@ -21,13 +21,17 @@
     <form id="clienteForm">
       <div class="form-grid cols-2">
         <div class="field"><label>Nome completo</label><input id="nome" required /></div>
-        <div class="field"><label>CPF/CNPJ</label><input id="cpfCnpj" required /></div>
+        <div class="field"><label>CPF/CNPJ</label><input id="cpfCnpj" required inputmode="numeric" placeholder="000.000.000-00" /></div>
         <div class="field"><label>E-mail</label><input id="email" type="email" /></div>
         <div class="field"><label>Telefone</label><input id="telefone" /></div>
         <div class="field"><label>Endereço</label><input id="endereco" /></div>
         <div class="field"><label>Cidade</label><input id="cidade" /></div>
         <div class="field"><label>Estado</label><input id="estado" maxlength="2" /></div>
         <div class="field"><label>CEP</label><input id="cep" /></div>
+        <div class="field">
+          <label>Centro de custo</label>
+          <select id="centroCustoId"><option value="">Nenhum</option></select>
+        </div>
         <div class="field"><label>Senha inicial do portal (opcional)</label><input id="senha" placeholder="Padrão: o próprio CPF/CNPJ" /></div>
       </div>
       <div class="flex-between">
@@ -58,9 +62,18 @@
 <script>
   requireAdminAuth();
   renderAdminNav("clientes");
+  aplicarMascaraCpfCnpj(document.getElementById("cpfCnpj"));
 
   const alertBox = document.getElementById("alertBox");
   let clientesCache = [];
+
+  async function carregarCentrosCusto() {
+    const centros = await adminApi("/centro-custo");
+    const select = document.getElementById("centroCustoId");
+    centros
+      .filter((c) => c.ativo)
+      .forEach((c) => select.insertAdjacentHTML("beforeend", `<option value="${c.id}">${c.nome} (${c.numero})</option>`));
+  }
 
   const badgeStatusCliente = (status) => {
     const mapa = {
@@ -82,7 +95,7 @@
         (c) => `
       <tr>
         <td data-label="Nome"><a href="cliente-detalhe.html?id=${c.id}">${c.nome}</a></td>
-        <td data-label="CPF/CNPJ">${c.cpfCnpj}</td>
+        <td data-label="CPF/CNPJ">${formatarCpfCnpj(c.cpfCnpj)}</td>
         <td data-label="Status">${badgeStatusCliente(c.status)}</td>
         <td data-label="Contratos">${c.contratos?.length || 0}</td>
         <td data-label="">
@@ -139,6 +152,7 @@
           cidade: document.getElementById("cidade").value.trim() || undefined,
           estado: document.getElementById("estado").value.trim() || undefined,
           cep: document.getElementById("cep").value.trim() || undefined,
+          centroCustoId: document.getElementById("centroCustoId").value || undefined,
           senha: document.getElementById("senha").value.trim() || undefined,
         },
       });
@@ -153,6 +167,7 @@
     }
   });
 
+  carregarCentrosCusto().catch(() => {});
   carregar();
 </script>
 </body>

@@ -48,7 +48,7 @@ function formatData(dataIso) {
   return new Date(dataIso).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
-function brandHtml(href) {
+function brandHtml(href, opcoes = {}) {
   const conteudo = `
     <svg class="brand-icon" width="34" height="34" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
       <polygon points="20,2 35,11 35,29 20,38 5,29 5,11" fill="#182848" />
@@ -60,7 +60,44 @@ function brandHtml(href) {
       <span class="brand-sub">CONECTA</span>
     </span>
   `;
-  return href ? `<a href="${href}" class="brand">${conteudo}</a>` : `<span class="brand">${conteudo}</span>`;
+  const marca = href ? `<a href="${href}" class="brand">${conteudo}</a>` : `<span class="brand">${conteudo}</span>`;
+  if (!opcoes.comParceiro) return marca;
+  return `<span class="brand-duo">${marca}<span class="brand-divider"></span>${mzvLogoHtml()}</span>`;
+}
+
+function mzvLogoHtml() {
+  return `
+    <span class="brand-mzv" title="Desenvolvido por MZV Tecnologia">
+      <span class="brand-mzv-word">MZ<span class="brand-mzv-v">V</span></span>
+      <span class="brand-mzv-sub">TECNOLOGIA</span>
+    </span>
+  `;
+}
+
+// Formata um CPF/CNPJ (armazenado só com dígitos) para exibição.
+function formatarCpfCnpj(valor) {
+  const v = (valor || "").replace(/\D/g, "");
+  if (v.length === 11) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  if (v.length === 14) return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  return valor || "-";
+}
+
+// Aplica máscara de CPF (000.000.000-00) ou CNPJ (00.000.000/0000-00) enquanto o usuário digita.
+function aplicarMascaraCpfCnpj(input) {
+  input.addEventListener("input", () => {
+    let v = input.value.replace(/\D/g, "").slice(0, 14);
+    if (v.length <= 11) {
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    } else {
+      v = v.replace(/(\d{2})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d)/, "$1.$2");
+      v = v.replace(/(\d{3})(\d)/, "$1/$2");
+      v = v.replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+    }
+    input.value = v;
+  });
 }
 
 function mesReferenciaLegivel(mes) {

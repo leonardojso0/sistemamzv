@@ -11,9 +11,9 @@ function formatarDataBR(data) {
   return new Date(data).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
-// Lista com filtros: status, período (por vencimento) e cliente
+// Lista com filtros: status, período (por vencimento), cliente e centro de custo
 router.get("/", async (req, res) => {
-  const { status, dataInicio, dataFim, clienteId } = req.query;
+  const { status, dataInicio, dataFim, clienteId, centroCustoId } = req.query;
 
   const where = {};
   if (status) where.status = status;
@@ -22,12 +22,17 @@ router.get("/", async (req, res) => {
     if (dataInicio) where.vencimento.gte = new Date(`${dataInicio}T00:00:00.000Z`);
     if (dataFim) where.vencimento.lte = new Date(`${dataFim}T23:59:59.999Z`);
   }
-  if (clienteId) where.contrato = { clienteId };
+  if (clienteId || centroCustoId) {
+    where.contrato = {
+      clienteId: clienteId || undefined,
+      cliente: centroCustoId ? { centroCustoId } : undefined,
+    };
+  }
 
   const contas = await prisma.contaReceber.findMany({
     where,
     include: {
-      contrato: { include: { cliente: true, plano: true } },
+      contrato: { include: { cliente: { include: { centroCusto: true } }, plano: true } },
       boleto: true,
     },
     orderBy: { vencimento: "asc" },

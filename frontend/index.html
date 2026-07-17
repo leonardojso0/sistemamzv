@@ -7,19 +7,95 @@
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<div class="auth-page">
-  <div class="auth-card" style="max-width: 420px; text-align: center;">
+<div class="home-page">
+  <div class="home-card">
     <div id="brandBox"></div>
-    <p>Selecione como deseja acessar.</p>
-    <a href="admin/login.html" class="btn btn-block" style="margin-bottom: 0.75rem;">Sou da equipe (Admin)</a>
-    <a href="portal/login.html" class="btn btn-ghost btn-block">Sou cliente</a>
+    <h1>Portal do Cliente</h1>
+    <p>Acesse com seu CPF/CNPJ para ver seu contrato e seus boletos.</p>
+
+    <div id="alertBox"></div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="cpfCnpj">CPF/CNPJ</label>
+        <input type="text" id="cpfCnpj" required autocomplete="username" inputmode="numeric" placeholder="000.000.000-00" />
+      </div>
+      <div class="field">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" required autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn btn-block" id="submitBtn">Entrar</button>
+    </form>
+
+    <a id="linkWhatsapp" href="#" target="_blank" rel="noopener" class="btn btn-ghost btn-block" style="margin-top: 0.75rem; display:none;">Fale conosco no WhatsApp</a>
+
+    <div class="auth-switch">
+      É da equipe? <a href="admin/login.html">Acesse o painel administrativo</a>
+    </div>
   </div>
+
+  <footer class="home-footer" id="homeFooter"></footer>
 </div>
 
 <script src="js/config.js"></script>
 <script src="js/api.js"></script>
 <script>
-  document.getElementById("brandBox").innerHTML = brandHtml();
+  document.getElementById("brandBox").innerHTML = brandHtml(null, { comParceiro: true });
+
+  if (localStorage.getItem(CLIENTE_TOKEN_KEY)) {
+    window.location.href = "portal/home.html";
+  }
+
+  aplicarMascaraCpfCnpj(document.getElementById("cpfCnpj"));
+
+  const form = document.getElementById("loginForm");
+  const alertBox = document.getElementById("alertBox");
+  const submitBtn = document.getElementById("submitBtn");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    alertBox.innerHTML = "";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Entrando...";
+
+    try {
+      const data = await apiRequest("/auth/cliente/login", {
+        method: "POST",
+        body: {
+          cpfCnpj: document.getElementById("cpfCnpj").value.trim(),
+          senha: document.getElementById("senha").value,
+        },
+      });
+      localStorage.setItem(CLIENTE_TOKEN_KEY, data.token);
+      localStorage.setItem(CLIENTE_USER_KEY, JSON.stringify(data.cliente));
+      window.location.href = "portal/home.html";
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Entrar";
+    }
+  });
+
+  (async () => {
+    try {
+      const config = await apiRequest("/configuracao");
+      if (config.whatsapp) {
+        const link = document.getElementById("linkWhatsapp");
+        link.href = `https://wa.me/${config.whatsapp.replace(/\D/g, "")}`;
+        link.style.display = "inline-flex";
+      }
+
+      const partes = [];
+      if (config.endereco) partes.push(`<div><strong>Endereço:</strong> ${config.endereco}</div>`);
+      if (config.telefone) partes.push(`<div><strong>Telefone:</strong> ${config.telefone}</div>`);
+      if (config.email) partes.push(`<div><strong>E-mail:</strong> ${config.email}</div>`);
+      if (partes.length) {
+        document.getElementById("homeFooter").innerHTML = partes.join("");
+      }
+    } catch (err) {
+      /* configuração ainda não cadastrada, segue sem rodapé */
+    }
+  })();
 </script>
 </body>
 </html>

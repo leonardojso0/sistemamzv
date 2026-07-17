@@ -28,6 +28,7 @@ model UsuarioAdmin {
   boletosUpload     Boleto[]             @relation("UploadPor")
   contasConfirmadas ContaReceber[]       @relation("ConfirmadoPor")
   movimentacoes     MovimentacaoConta[]  @relation("MovimentacaoPor")
+  movimentacoesCliente MovimentacaoCliente[] @relation("MovimentacaoClientePor")
 }
 
 // ---------- Clientes ----------
@@ -39,22 +40,49 @@ enum StatusCliente {
 }
 
 model Cliente {
-  id            String        @id @default(uuid())
-  nome          String
-  cpfCnpj       String        @unique
-  email         String?
-  telefone      String?
-  endereco      String?
-  cidade        String?
-  estado        String?
-  cep           String?
-  status        StatusCliente @default(ATIVO)
-  senhaHash     String        // login simples do cliente no portal (por CPF)
-  criadoEm      DateTime      @default(now())
-  atualizadoEm  DateTime      @updatedAt
+  id             String        @id @default(uuid())
+  nome           String
+  cpfCnpj        String        @unique
+  email          String?
+  telefone       String?
+  endereco       String?
+  cidade         String?
+  estado         String?
+  cep            String?
+  status         StatusCliente @default(ATIVO)
+  senhaHash      String        // login simples do cliente no portal (por CPF)
+  centroCustoId  String?
+  centroCusto    CentroCusto?  @relation(fields: [centroCustoId], references: [id])
+  criadoEm       DateTime      @default(now())
+  atualizadoEm   DateTime      @updatedAt
 
-  documentos    DocumentoCliente[]
-  contratos     Contrato[]
+  documentos     DocumentoCliente[]
+  contratos      Contrato[]
+  movimentacoes  MovimentacaoCliente[]
+}
+
+// ---------- Centro de custo ----------
+
+model CentroCusto {
+  id        String    @id @default(uuid())
+  nome      String
+  numero    String
+  ativo     Boolean   @default(true)
+  criadoEm  DateTime  @default(now())
+
+  clientes  Cliente[]
+}
+
+// ---------- Histórico do cliente (auditoria) ----------
+
+model MovimentacaoCliente {
+  id             String        @id @default(uuid())
+  clienteId      String
+  cliente        Cliente       @relation(fields: [clienteId], references: [id])
+  descricao      String
+  realizadoPorId String?
+  realizadoPor   UsuarioAdmin? @relation("MovimentacaoClientePor", fields: [realizadoPorId], references: [id])
+  criadoEm       DateTime      @default(now())
 }
 
 // ---------- Documentos do cliente ----------
@@ -86,6 +114,7 @@ model Plano {
   velocidade    String     // ex: "300 Mega"
   valorMensal   Decimal    @db.Decimal(10, 2)
   ativo         Boolean    @default(true)
+  desativadoEm  DateTime?
 
   contratos     Contrato[]
 }
@@ -171,4 +200,15 @@ model MovimentacaoConta {
   realizadoPorId String?       // nulo quando a ação é automática (ex: webhook)
   realizadoPor   UsuarioAdmin? @relation("MovimentacaoPor", fields: [realizadoPorId], references: [id])
   criadoEm       DateTime      @default(now())
+}
+
+// ---------- Configurações gerais da empresa ----------
+
+model ConfiguracaoEmpresa {
+  id           String   @id @default(uuid())
+  endereco     String?
+  email        String?
+  telefone     String?
+  whatsapp     String?  // número com DDI, ex: 5582982021000 (usado no link wa.me)
+  atualizadoEm DateTime @updatedAt
 }

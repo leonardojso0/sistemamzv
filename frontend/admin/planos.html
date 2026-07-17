@@ -31,7 +31,7 @@
 
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Nome</th><th>Velocidade</th><th>Valor mensal</th><th>Ativo</th><th></th></tr></thead>
+      <thead><tr><th>Nome</th><th>Velocidade</th><th>Valor mensal</th><th>Status</th><th></th></tr></thead>
       <tbody id="tabelaPlanos"><tr><td colspan="5">Carregando...</td></tr></tbody>
     </table>
   </div>
@@ -48,7 +48,7 @@
 
   async function carregar() {
     try {
-      const planos = await adminApi("/planos");
+      const planos = await adminApi("/planos?todos=true");
       const tbody = document.getElementById("tabelaPlanos");
       tbody.innerHTML = planos.length
         ? planos
@@ -58,7 +58,11 @@
           <td data-label="Nome">${p.nome}</td>
           <td data-label="Velocidade">${p.velocidade}</td>
           <td data-label="Valor mensal">${formatMoeda(p.valorMensal)}</td>
-          <td data-label="Ativo">${p.ativo ? '<span class="badge badge-success">Sim</span>' : '<span class="badge badge-muted">Não</span>'}</td>
+          <td data-label="Status">${
+            p.ativo
+              ? '<span class="badge badge-success">Ativo</span>'
+              : `<span class="badge badge-muted">Desativado${p.desativadoEm ? ` em ${formatData(p.desativadoEm)}` : ""}</span>`
+          }</td>
           <td data-label="">
             <button class="btn btn-ghost" data-toggle="${p.id}" data-ativo="${p.ativo}">${p.ativo ? "Desativar" : "Ativar"}</button>
           </td>

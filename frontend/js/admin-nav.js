@@ -24,7 +24,9 @@ function renderAdminNav(active) {
           <a href="planos.html" data-key="planos">Planos</a>
           <a href="boletos.html" data-key="boletos">Boletos</a>
           <a href="contas-receber.html" data-key="contas">Contas a Receber</a>
+          <a href="centro-custo.html" data-key="centro-custo">Centro de Custo</a>
           ${usuario.perfil === "ADMIN" ? '<a href="usuarios.html" data-key="usuarios">Usuários</a>' : ""}
+          ${usuario.perfil === "ADMIN" ? '<a href="configuracoes.html" data-key="configuracoes">Configurações</a>' : ""}
           <div class="nav-user">${usuario.nome || "Admin"}${usuario.perfil ? ` · ${usuario.perfil}` : ""}</div>
           <button id="logoutBtn" class="btn btn-ghost btn-block">Sair</button>
         </nav>

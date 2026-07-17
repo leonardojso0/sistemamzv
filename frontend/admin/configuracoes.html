@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Configurações — NEXUS CONECTA</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+<template id="page-body">
+  <div class="page-header">
+    <h2>Configurações</h2>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="card">
+    <h3>Contato exibido na página inicial</h3>
+    <p>Essas informações aparecem para qualquer visitante, na tela de login do cliente.</p>
+    <form id="configForm" class="form-grid cols-2">
+      <div class="field" style="grid-column: 1 / -1;">
+        <label>Endereço</label>
+        <input id="endereco" placeholder="Av. da Paz, 1864 - sala 1801 B - Centro, Maceió - AL, 57020-440" />
+      </div>
+      <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="contato@empresa.com.br" /></div>
+      <div class="field"><label>Telefone</label><input id="telefone" placeholder="(82) 98202-1000" /></div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <label>WhatsApp (Fale conosco)</label>
+        <input id="whatsapp" placeholder="Ex: 5582982021000 (DDI + DDD + número, só números)" />
+      </div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <button type="submit" class="btn btn-block" id="btnSalvar">Salvar configurações</button>
+      </div>
+    </form>
+  </div>
+</template>
+
+<script src="../js/config.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/admin-nav.js"></script>
+<script>
+  requireAdminAuth();
+  renderAdminNav("configuracoes");
+
+  const alertBox = document.getElementById("alertBox");
+
+  async function carregar() {
+    const config = await adminApi("/configuracao");
+    document.getElementById("endereco").value = config.endereco || "";
+    document.getElementById("email").value = config.email || "";
+    document.getElementById("telefone").value = config.telefone || "";
+    document.getElementById("whatsapp").value = config.whatsapp || "";
+  }
+
+  document.getElementById("configForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btnSalvar = document.getElementById("btnSalvar");
+    btnSalvar.disabled = true;
+    try {
+      await adminApi("/configuracao", {
+        method: "PUT",
+        body: {
+          endereco: document.getElementById("endereco").value.trim(),
+          email: document.getElementById("email").value.trim(),
+          telefone: document.getElementById("telefone").value.trim(),
+          whatsapp: document.getElementById("whatsapp").value.replace(/\D/g, ""),
+        },
+      });
+      alertBox.innerHTML = `<div class="alert alert-success">Configurações salvas com sucesso.</div>`;
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btnSalvar.disabled = false;
+    }
+  });
+
+  carregar().catch((err) => {
+    alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  });
+</script>
+</body>
+</html>

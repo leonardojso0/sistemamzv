@@ -18,6 +18,36 @@
 
   <div class="card" id="dadosCard">Carregando...</div>
 
+  <div class="card" id="editCard" style="display:none;">
+    <h3>Editar dados do cliente</h3>
+    <form id="editForm" class="form-grid cols-2">
+      <div class="field"><label>Nome completo</label><input id="editNome" required /></div>
+      <div class="field"><label>Status</label>
+        <select id="editStatus">
+          <option value="ATIVO">Ativo</option>
+          <option value="INADIMPLENTE">Inadimplente</option>
+          <option value="CANCELADO">Cancelado</option>
+        </select>
+      </div>
+      <div class="field"><label>E-mail</label><input id="editEmail" type="email" /></div>
+      <div class="field"><label>Telefone</label><input id="editTelefone" /></div>
+      <div class="field"><label>Endereço</label><input id="editEndereco" /></div>
+      <div class="field"><label>Cidade</label><input id="editCidade" /></div>
+      <div class="field"><label>Estado</label><input id="editEstado" maxlength="2" /></div>
+      <div class="field"><label>CEP</label><input id="editCep" /></div>
+      <div class="field">
+        <label>Centro de custo</label>
+        <select id="editCentroCustoId"><option value="">Nenhum</option></select>
+      </div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <div class="flex-between">
+          <button type="button" class="btn btn-ghost" id="btnCancelarEdicao">Cancelar</button>
+          <button type="submit" class="btn" id="btnSalvarEdicao">Salvar alterações</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
   <div class="section-title">Documentos</div>
   <div class="card">
     <form id="uploadForm" class="form-grid cols-3">
@@ -50,11 +80,31 @@
   <div class="section-title">Contratos</div>
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Plano</th><th>Status</th><th>Assinatura</th><th>Contas a receber</th></tr></thead>
-      <tbody id="tabelaContratos"><tr><td colspan="4">Carregando...</td></tr></tbody>
+      <thead><tr><th>Plano</th><th>Status</th><th>Assinatura</th><th>Contas a receber</th><th></th></tr></thead>
+      <tbody id="tabelaContratos"><tr><td colspan="5">Carregando...</td></tr></tbody>
     </table>
   </div>
+
+  <div class="section-title">Histórico do cliente</div>
+  <div class="card">
+    <ul class="timeline" id="listaHistorico"><li>Carregando...</li></ul>
+  </div>
 </template>
+
+<div class="modal-overlay hidden" id="modalPlano">
+  <div class="modal-card" style="max-width: 400px;">
+    <div class="flex-between" style="margin-bottom: 1rem;">
+      <h3 style="margin:0;">Alterar plano do contrato</h3>
+      <button class="modal-close" id="fecharModalPlano">&times;</button>
+    </div>
+    <div id="modalPlanoAlert"></div>
+    <div class="field">
+      <label>Novo plano</label>
+      <select id="selectNovoPlano"></select>
+    </div>
+    <button class="btn btn-block" id="btnSalvarPlano">Salvar</button>
+  </div>
+</div>
 
 <script src="../js/config.js"></script>
 <script src="../js/api.js"></script>
@@ -78,21 +128,55 @@
     alertBox.innerHTML = `<div class="alert alert-error">Cliente não informado.</div>`;
   }
 
+  let contratoEmEdicao = null;
+
+  async function carregarCentrosCusto(selecionadoId) {
+    const centros = await adminApi("/centro-custo");
+    const select = document.getElementById("editCentroCustoId");
+    select.innerHTML = '<option value="">Nenhum</option>';
+    centros
+      .filter((c) => c.ativo || c.id === selecionadoId)
+      .forEach((c) => select.insertAdjacentHTML("beforeend", `<option value="${c.id}">${c.nome} (${c.numero})</option>`));
+    select.value = selecionadoId || "";
+  }
+
   async function carregar() {
     try {
-      const cliente = await adminApi(`/clientes/${clienteId}`);
+      const [cliente, historico] = await Promise.all([
+        adminApi(`/clientes/${clienteId}`),
+        adminApi(`/clientes/${clienteId}/historico`),
+      ]);
+
       document.getElementById("tituloCliente").textContent = cliente.nome;
 
       document.getElementById("dadosCard").innerHTML = `
-        <div class="form-grid cols-2">
-          <div><strong>CPF/CNPJ:</strong> ${cliente.cpfCnpj}</div>
-          <div><strong>Status:</strong> ${cliente.status}</div>
-          <div><strong>E-mail:</strong> ${cliente.email || "-"}</div>
-          <div><strong>Telefone:</strong> ${cliente.telefone || "-"}</div>
-          <div><strong>Endereço:</strong> ${cliente.endereco || "-"}</div>
-          <div><strong>Cidade/UF:</strong> ${cliente.cidade || "-"}/${cliente.estado || "-"}</div>
+        <div class="flex-between">
+          <div class="form-grid cols-2" style="flex:1;">
+            <div><strong>CPF/CNPJ:</strong> ${formatarCpfCnpj(cliente.cpfCnpj)}</div>
+            <div><strong>Status:</strong> ${cliente.status}</div>
+            <div><strong>E-mail:</strong> ${cliente.email || "-"}</div>
+            <div><strong>Telefone:</strong> ${cliente.telefone || "-"}</div>
+            <div><strong>Endereço:</strong> ${cliente.endereco || "-"}</div>
+            <div><strong>Cidade/UF:</strong> ${cliente.cidade || "-"}/${cliente.estado || "-"}</div>
+            <div><strong>Centro de custo:</strong> ${cliente.centroCusto ? `${cliente.centroCusto.nome} (${cliente.centroCusto.numero})` : "-"}</div>
+          </div>
+          <button class="btn btn-ghost" id="btnEditar">Editar dados</button>
         </div>
       `;
+
+      document.getElementById("btnEditar").onclick = async () => {
+        document.getElementById("editNome").value = cliente.nome;
+        document.getElementById("editStatus").value = cliente.status;
+        document.getElementById("editEmail").value = cliente.email || "";
+        document.getElementById("editTelefone").value = cliente.telefone || "";
+        document.getElementById("editEndereco").value = cliente.endereco || "";
+        document.getElementById("editCidade").value = cliente.cidade || "";
+        document.getElementById("editEstado").value = cliente.estado || "";
+        document.getElementById("editCep").value = cliente.cep || "";
+        await carregarCentrosCusto(cliente.centroCustoId);
+        document.getElementById("editCard").style.display = "block";
+        document.getElementById("editCard").scrollIntoView({ behavior: "smooth" });
+      };
 
       const tbodyDocs = document.getElementById("tabelaDocumentos");
       tbodyDocs.innerHTML = cliente.documentos.length
@@ -103,7 +187,10 @@
             <td data-label="Tipo">${tiposDocumento[d.tipo] || d.tipo}</td>
             <td data-label="Arquivo">${d.nomeArquivo}</td>
             <td data-label="Enviado em">${formatData(d.criadoEm)}</td>
-            <td data-label=""><button class="btn btn-ghost" data-baixar-doc="${d.id}">Baixar</button></td>
+            <td data-label="">
+              <button class="btn btn-ghost" data-baixar-doc="${d.id}">Baixar</button>
+              <button class="btn btn-danger" data-excluir-doc="${d.id}">Excluir</button>
+            </td>
           </tr>`
             )
             .join("")
@@ -125,6 +212,18 @@
         };
       });
 
+      document.querySelectorAll("[data-excluir-doc]").forEach((btn) => {
+        btn.onclick = async () => {
+          if (!confirm("Tem certeza que deseja excluir este documento? Essa ação não pode ser desfeita.")) return;
+          try {
+            await adminApi(`/clientes/${clienteId}/documentos/${btn.dataset.excluirDoc}`, { method: "DELETE" });
+            carregar();
+          } catch (err) {
+            alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+          }
+        };
+      });
+
       const tbodyContratos = document.getElementById("tabelaContratos");
       tbodyContratos.innerHTML = cliente.contratos.length
         ? cliente.contratos
@@ -135,14 +234,87 @@
             <td data-label="Status">${c.status}</td>
             <td data-label="Assinatura">${formatData(c.dataAssinatura)}</td>
             <td data-label="Contas a receber">${c.contasReceber?.length || 0}</td>
+            <td data-label="">
+              <button class="btn btn-ghost" data-alterar-plano="${c.id}">Alterar plano</button>
+              ${
+                c.status === "ATIVO"
+                  ? `<button class="btn btn-ghost" data-status-contrato="${c.id}:SUSPENSO">Suspender</button>
+                     <button class="btn btn-danger" data-status-contrato="${c.id}:CANCELADO">Cancelar</button>`
+                  : c.status === "SUSPENSO"
+                  ? `<button class="btn btn-ghost" data-status-contrato="${c.id}:ATIVO">Reativar</button>`
+                  : ""
+              }
+            </td>
           </tr>`
             )
             .join("")
-        : `<tr><td colspan="4"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
+        : `<tr><td colspan="5"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
+
+      document.querySelectorAll("[data-status-contrato]").forEach((btn) => {
+        btn.onclick = async () => {
+          const [id, status] = btn.dataset.statusContrato.split(":");
+          try {
+            await adminApi(`/contratos/${id}`, { method: "PUT", body: { status } });
+            carregar();
+          } catch (err) {
+            alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+          }
+        };
+      });
+
+      document.querySelectorAll("[data-alterar-plano]").forEach((btn) => {
+        btn.onclick = () => abrirModalPlano(btn.dataset.alterarPlano);
+      });
+
+      const listaHistorico = document.getElementById("listaHistorico");
+      listaHistorico.innerHTML = historico.length
+        ? historico
+            .map(
+              (h) => `
+        <li>
+          ${h.descricao}
+          <div class="timeline-meta">${new Date(h.criadoEm).toLocaleString("pt-BR")} — ${h.realizadoPor?.nome || "Sistema"}</div>
+        </li>`
+            )
+            .join("")
+        : "<li>Nenhuma movimentação registrada ainda.</li>";
     } catch (err) {
       alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
     }
   }
+
+  document.getElementById("btnCancelarEdicao").onclick = () => {
+    document.getElementById("editCard").style.display = "none";
+  };
+
+  document.getElementById("editForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btnSalvar = document.getElementById("btnSalvarEdicao");
+    btnSalvar.disabled = true;
+    try {
+      await adminApi(`/clientes/${clienteId}`, {
+        method: "PUT",
+        body: {
+          nome: document.getElementById("editNome").value.trim(),
+          status: document.getElementById("editStatus").value,
+          email: document.getElementById("editEmail").value.trim() || undefined,
+          telefone: document.getElementById("editTelefone").value.trim() || undefined,
+          endereco: document.getElementById("editEndereco").value.trim() || undefined,
+          cidade: document.getElementById("editCidade").value.trim() || undefined,
+          estado: document.getElementById("editEstado").value.trim() || undefined,
+          cep: document.getElementById("editCep").value.trim() || undefined,
+          centroCustoId: document.getElementById("editCentroCustoId").value,
+        },
+      });
+      document.getElementById("editCard").style.display = "none";
+      alertBox.innerHTML = `<div class="alert alert-success">Dados atualizados com sucesso.</div>`;
+      carregar();
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btnSalvar.disabled = false;
+    }
+  });
 
   document.getElementById("uploadForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -172,6 +344,35 @@
       btnUpload.textContent = "Enviar";
     }
   });
+
+  // Modal de troca de plano do contrato
+  const modalPlano = document.getElementById("modalPlano");
+  document.getElementById("fecharModalPlano").onclick = () => modalPlano.classList.add("hidden");
+  modalPlano.addEventListener("click", (e) => {
+    if (e.target === modalPlano) modalPlano.classList.add("hidden");
+  });
+
+  async function abrirModalPlano(contratoId) {
+    contratoEmEdicao = contratoId;
+    document.getElementById("modalPlanoAlert").innerHTML = "";
+    const planos = await adminApi("/planos");
+    const select = document.getElementById("selectNovoPlano");
+    select.innerHTML = planos.map((p) => `<option value="${p.id}">${p.nome} (${p.velocidade})</option>`).join("");
+    modalPlano.classList.remove("hidden");
+  }
+
+  document.getElementById("btnSalvarPlano").onclick = async () => {
+    try {
+      await adminApi(`/contratos/${contratoEmEdicao}`, {
+        method: "PUT",
+        body: { planoId: document.getElementById("selectNovoPlano").value },
+      });
+      modalPlano.classList.add("hidden");
+      carregar();
+    } catch (err) {
+      document.getElementById("modalPlanoAlert").innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  };
 
   if (clienteId) carregar();
 </script>

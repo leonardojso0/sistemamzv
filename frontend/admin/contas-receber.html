@@ -34,6 +34,10 @@
         <label>Vencimento até</label>
         <input type="date" id="filtroDataFim" />
       </div>
+      <div class="field">
+        <label>Centro de custo</label>
+        <select id="filtroCentroCusto"><option value="">Todos</option></select>
+      </div>
     </div>
     <div class="flex-between">
       <button class="btn btn-ghost" id="btnLimparFiltros">Limpar filtros</button>
@@ -90,11 +94,19 @@
     const status = document.getElementById("filtroStatus").value;
     const dataInicio = document.getElementById("filtroDataInicio").value;
     const dataFim = document.getElementById("filtroDataFim").value;
+    const centroCustoId = document.getElementById("filtroCentroCusto").value;
     if (status) params.set("status", status);
     if (dataInicio) params.set("dataInicio", dataInicio);
     if (dataFim) params.set("dataFim", dataFim);
+    if (centroCustoId) params.set("centroCustoId", centroCustoId);
     const qs = params.toString();
     return qs ? `?${qs}` : "";
+  }
+
+  async function carregarCentrosCusto() {
+    const centros = await adminApi("/centro-custo");
+    const select = document.getElementById("filtroCentroCusto");
+    centros.forEach((c) => select.insertAdjacentHTML("beforeend", `<option value="${c.id}">${c.nome} (${c.numero})</option>`));
   }
 
   async function carregar() {
@@ -225,9 +237,11 @@
     document.getElementById("filtroStatus").value = "";
     document.getElementById("filtroDataInicio").value = "";
     document.getElementById("filtroDataFim").value = "";
+    document.getElementById("filtroCentroCusto").value = "";
     carregar();
   };
 
+  carregarCentrosCusto().catch(() => {});
   carregar().catch((err) => {
     alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
   });

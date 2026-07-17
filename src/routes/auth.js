@@ -29,8 +29,9 @@ router.post("/admin/login", async (req, res) => {
 // Login do cliente (por CPF/CNPJ + senha)
 router.post("/cliente/login", async (req, res) => {
   const { cpfCnpj, senha } = req.body;
+  const cpfCnpjLimpo = (cpfCnpj || "").replace(/\D/g, "");
 
-  const cliente = await prisma.cliente.findUnique({ where: { cpfCnpj } });
+  const cliente = await prisma.cliente.findUnique({ where: { cpfCnpj: cpfCnpjLimpo } });
   if (!cliente) return res.status(401).json({ erro: "Credenciais inválidas." });
 
   const senhaOk = await bcrypt.compare(senha, cliente.senhaHash);

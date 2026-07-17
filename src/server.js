@@ -10,6 +10,8 @@ const boletosRoutes = require("./routes/boletos");
 const contasReceberRoutes = require("./routes/contas-receber");
 const portalClienteRoutes = require("./routes/portal-cliente");
 const usuariosRoutes = require("./routes/usuarios");
+const centroCustoRoutes = require("./routes/centro-custo");
+const configuracaoRoutes = require("./routes/configuracao");
 
 const app = express();
 
@@ -26,6 +28,8 @@ app.use("/boletos", boletosRoutes);
 app.use("/contas-receber", contasReceberRoutes);
 app.use("/portal", portalClienteRoutes);
 app.use("/usuarios", usuariosRoutes);
+app.use("/centro-custo", centroCustoRoutes);
+app.use("/configuracao", configuracaoRoutes);
 
 // Tratamento de erro genérico
 app.use((err, req, res, next) => {
