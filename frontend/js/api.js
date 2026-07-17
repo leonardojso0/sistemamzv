@@ -78,15 +78,12 @@ function formatData(dataIso) {
   return new Date(dataIso).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
+const ASSET_PREFIX = /\/(admin|portal)\//.test(window.location.pathname) ? "../assets/" : "assets/";
+
 function brandHtml(href, opcoes = {}) {
   const conteudo = `
-    <svg class="brand-icon" width="34" height="34" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-      <polygon points="20,2 35,11 35,29 20,38 5,29 5,11" fill="#182848" />
-      <polygon points="20,7 30,13 30,27 20,33 10,27 10,13" fill="none" stroke="#f5a623" stroke-width="2" />
-      <text x="20" y="26" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="16" fill="#ffffff" text-anchor="middle">N</text>
-    </svg>
-    <span class="brand-text">
-      <span class="brand-name">NEX<span class="brand-accent">US</span></span>
+    <span class="brand-chip">
+      <img src="${ASSET_PREFIX}logo-nexus.png" alt="NEXUS" height="26" />
       <span class="brand-sub">CONECTA</span>
     </span>
   `;
@@ -97,9 +94,8 @@ function brandHtml(href, opcoes = {}) {
 
 function mzvLogoHtml() {
   return `
-    <span class="brand-mzv" title="Desenvolvido por MZV Tecnologia">
-      <span class="brand-mzv-word">MZ<span class="brand-mzv-v">V</span></span>
-      <span class="brand-mzv-sub">TECNOLOGIA</span>
+    <span class="brand-chip" title="Desenvolvido por MZV Tecnologia">
+      <img src="${ASSET_PREFIX}logo-mzv.png" alt="MZV Tecnologia" height="30" />
     </span>
   `;
 }
