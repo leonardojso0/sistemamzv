@@ -190,4 +190,41 @@ router.delete("/:id/documentos/:documentoId", async (req, res) => {
   res.status(204).send();
 });
 
+// Excluir cliente e todos os dados vinculados (documentos, contratos, boletos, contas a receber)
+router.delete("/:id", async (req, res) => {
+  const cliente = await prisma.cliente.findUnique({
+    where: { id: req.params.id },
+    include: {
+      documentos: true,
+      contratos: { include: { boletos: true, contasReceber: true } },
+    },
+  });
+  if (!cliente) return res.status(404).json({ erro: "Cliente não encontrado." });
+
+  // Remove os arquivos do storage antes de apagar os registros do banco
+  for (const doc of cliente.documentos) {
+    await excluirArquivo(doc.urlArquivo).catch(() => {});
+  }
+  for (const contrato of cliente.contratos) {
+    for (const boleto of contrato.boletos) {
+      await excluirArquivo(boleto.urlArquivo).catch(() => {});
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const contratoIds = cliente.contratos.map((c) => c.id);
+    const contaIds = cliente.contratos.flatMap((c) => c.contasReceber.map((cr) => cr.id));
+
+    await tx.movimentacaoConta.deleteMany({ where: { contaReceberId: { in: contaIds } } });
+    await tx.contaReceber.deleteMany({ where: { contratoId: { in: contratoIds } } });
+    await tx.boleto.deleteMany({ where: { contratoId: { in: contratoIds } } });
+    await tx.contrato.deleteMany({ where: { id: { in: contratoIds } } });
+    await tx.documentoCliente.deleteMany({ where: { clienteId: cliente.id } });
+    await tx.movimentacaoCliente.deleteMany({ where: { clienteId: cliente.id } });
+    await tx.cliente.delete({ where: { id: cliente.id } });
+  });
+
+  res.status(204).send();
+});
+
 module.exports = router;

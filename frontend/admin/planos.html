@@ -73,10 +73,12 @@
 
       document.querySelectorAll("[data-toggle]").forEach((btn) => {
         btn.onclick = async () => {
+          const vaiAtivar = btn.dataset.ativo !== "true";
+          if (!vaiAtivar && !confirm("Tem certeza que deseja desativar este plano? Ele deixará de aparecer para novos contratos.")) return;
           try {
             await adminApi(`/planos/${btn.dataset.toggle}`, {
               method: "PUT",
-              body: { ativo: btn.dataset.ativo !== "true" },
+              body: { ativo: vaiAtivar },
             });
             carregar();
           } catch (err) {

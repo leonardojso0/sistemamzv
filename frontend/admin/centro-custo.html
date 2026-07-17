@@ -99,10 +99,12 @@
 
     document.querySelectorAll("[data-toggle]").forEach((btn) => {
       btn.onclick = async () => {
+        const vaiAtivar = btn.dataset.ativo !== "true";
+        if (!vaiAtivar && !confirm("Tem certeza que deseja desativar este centro de custo?")) return;
         try {
           await adminApi(`/centro-custo/${btn.dataset.toggle}`, {
             method: "PUT",
-            body: { ativo: btn.dataset.ativo !== "true" },
+            body: { ativo: vaiAtivar },
           });
           carregar();
         } catch (err) {

@@ -11,7 +11,10 @@
 <template id="page-body">
   <div class="page-header">
     <h2 id="tituloCliente">Cliente</h2>
-    <a href="clientes.html" class="btn btn-ghost">&larr; Voltar</a>
+    <div style="display:flex; gap:0.5rem;">
+      <a href="clientes.html" class="btn btn-ghost">&larr; Voltar</a>
+      <button class="btn btn-danger" id="btnExcluirCliente">Excluir cliente</button>
+    </div>
   </div>
 
   <div id="alertBox"></div>
@@ -250,9 +253,16 @@
             .join("")
         : `<tr><td colspan="5"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
 
+      const mensagensStatusContrato = {
+        SUSPENSO: "Tem certeza que deseja suspender este contrato?",
+        CANCELADO: "Tem certeza que deseja cancelar este contrato? Essa ação não pode ser desfeita.",
+        ATIVO: "Tem certeza que deseja reativar este contrato?",
+      };
+
       document.querySelectorAll("[data-status-contrato]").forEach((btn) => {
         btn.onclick = async () => {
           const [id, status] = btn.dataset.statusContrato.split(":");
+          if (!confirm(mensagensStatusContrato[status] || "Confirma esta alteração?")) return;
           try {
             await adminApi(`/contratos/${id}`, { method: "PUT", body: { status } });
             carregar();
@@ -371,6 +381,26 @@
       carregar();
     } catch (err) {
       document.getElementById("modalPlanoAlert").innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    }
+  };
+
+  document.getElementById("btnExcluirCliente").onclick = async () => {
+    const primeiraConfirmacao = confirm(
+      "Tem certeza que deseja excluir este cliente? Isso também apaga todos os contratos, boletos, documentos e contas a receber vinculados. Essa ação não pode ser desfeita."
+    );
+    if (!primeiraConfirmacao) return;
+
+    const nomeDigitado = prompt('Para confirmar, digite o nome do cliente exatamente como mostrado: "' + document.getElementById("tituloCliente").textContent + '"');
+    if (nomeDigitado !== document.getElementById("tituloCliente").textContent) {
+      if (nomeDigitado !== null) alertBox.innerHTML = `<div class="alert alert-error">Nome não confere. Exclusão cancelada.</div>`;
+      return;
+    }
+
+    try {
+      await adminApi(`/clientes/${clienteId}`, { method: "DELETE" });
+      window.location.href = "clientes.html";
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
     }
   };
 

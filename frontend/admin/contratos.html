@@ -99,9 +99,16 @@
           .join("")
       : `<tr><td colspan="6"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
 
+    const mensagensStatusContrato = {
+      SUSPENSO: "Tem certeza que deseja suspender este contrato?",
+      CANCELADO: "Tem certeza que deseja cancelar este contrato? Essa ação não pode ser desfeita.",
+      ATIVO: "Tem certeza que deseja reativar este contrato?",
+    };
+
     document.querySelectorAll("[data-status]").forEach((btn) => {
       btn.onclick = async () => {
         const [id, status] = btn.dataset.status.split(":");
+        if (!confirm(mensagensStatusContrato[status] || "Confirma esta alteração?")) return;
         try {
           await adminApi(`/contratos/${id}`, { method: "PUT", body: { status } });
           carregarTabela();
