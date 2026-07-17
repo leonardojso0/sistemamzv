@@ -16,10 +16,6 @@
   <div id="alertBox"></div>
 
   <div class="card">
-    <div class="field" style="margin-bottom: 1rem;">
-      <label>Buscar cliente</label>
-      <input id="buscaCliente" placeholder="Digite o nome do cliente..." />
-    </div>
     <div class="form-grid cols-3">
       <div class="field">
         <label>Status</label>
@@ -55,7 +51,18 @@
 
   <div class="card table-wrap">
     <table>
-      <thead><tr><th>Status</th><th>Cliente</th><th>Histórico</th><th>Competência</th><th>Vencimento</th><th>Valor</th><th></th></tr></thead>
+      <thead>
+        <tr><th>Status</th><th>Cliente</th><th>Histórico</th><th>Competência</th><th>Vencimento</th><th>Valor</th><th></th></tr>
+        <tr class="col-filter-row">
+          <td></td>
+          <td><input class="col-filter" data-coluna="cliente" placeholder="🔍 Filtrar..." /></td>
+          <td><input class="col-filter" data-coluna="historico" placeholder="🔍 Filtrar..." /></td>
+          <td><input class="col-filter" data-coluna="competencia" placeholder="🔍 Filtrar..." /></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </thead>
       <tbody id="tabelaContas"><tr><td colspan="7">Carregando...</td></tr></tbody>
     </table>
   </div>
@@ -63,10 +70,11 @@
 
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal-card">
-    <div class="flex-between" style="margin-bottom: 1rem;">
+    <div class="flex-between" style="margin-bottom: 0.25rem;">
       <h3 id="modalTitulo" style="margin:0;">Lançamento</h3>
       <button class="modal-close" id="modalFechar">&times;</button>
     </div>
+    <div class="text-muted" id="modalUltimaAtualizacao" style="margin-bottom: 1rem; font-size: 0.82rem;"></div>
 
     <div id="modalAlert"></div>
     <div id="modalDetalhe" class="text-muted">Carregando...</div>
@@ -133,10 +141,20 @@
   }
 
   function renderTabela() {
-    const termo = document.getElementById("buscaCliente").value.trim().toLowerCase();
-    const contas = termo
-      ? contasCache.filter((c) => (c.contrato?.cliente?.nome || "").toLowerCase().includes(termo))
-      : contasCache;
+    const filtroCliente = document.querySelector('[data-coluna="cliente"]').value.trim().toLowerCase();
+    const filtroHistorico = document.querySelector('[data-coluna="historico"]').value.trim().toLowerCase();
+    const filtroCompetencia = document.querySelector('[data-coluna="competencia"]').value.trim().toLowerCase();
+
+    const contas = contasCache.filter((c) => {
+      const nomeCliente = (c.contrato?.cliente?.nome || "").toLowerCase();
+      const historico = `mensalidade ${c.contrato?.plano?.nome || ""} — ${mesReferenciaLegivel(c.mesReferencia)}`.toLowerCase();
+      const competencia = competenciaLegivel(c.mesReferencia).toLowerCase();
+      return (
+        (!filtroCliente || nomeCliente.includes(filtroCliente)) &&
+        (!filtroHistorico || historico.includes(filtroHistorico)) &&
+        (!filtroCompetencia || competencia.includes(filtroCompetencia))
+      );
+    });
 
     const tbody = document.getElementById("tabelaContas");
     tbody.innerHTML = contas.length
@@ -189,7 +207,9 @@
     renderTabela();
   }
 
-  document.getElementById("buscaCliente").addEventListener("input", renderTabela);
+  document.querySelectorAll(".col-filter").forEach((input) => {
+    input.addEventListener("input", renderTabela);
+  });
 
   async function abrirModal(id) {
     modalOverlay.classList.remove("hidden");
@@ -205,6 +225,9 @@
       ]);
 
       document.getElementById("modalTitulo").textContent = conta.contrato?.cliente?.nome || "Lançamento";
+      document.getElementById("modalUltimaAtualizacao").textContent = historico.length
+        ? `Última atualização: ${historico[0].realizadoPor?.nome || "Sistema"} em ${new Date(historico[0].criadoEm).toLocaleString("pt-BR")}`
+        : "";
 
       document.getElementById("modalDetalhe").innerHTML = `
         <div class="form-grid cols-2">
@@ -314,7 +337,7 @@
     document.getElementById("filtroDataInicio").value = "";
     document.getElementById("filtroDataFim").value = "";
     document.getElementById("filtroCentroCusto").value = "";
-    document.getElementById("buscaCliente").value = "";
+    document.querySelectorAll(".col-filter").forEach((input) => (input.value = ""));
     carregar();
   };
 
