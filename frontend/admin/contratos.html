@@ -11,34 +11,30 @@
 <template id="page-body">
   <div class="page-header">
     <h2>Contratos</h2>
-    <button class="btn" id="btnNovo">+ Novo contrato</button>
   </div>
+
+  <p class="text-muted" style="margin-top:-0.5rem;">
+    Consulta geral de todos os contratos. Para criar, alterar plano ou suspender/cancelar um contrato, acesse a página do cliente.
+  </p>
 
   <div id="alertBox"></div>
 
-  <div class="card" id="formCard" style="display:none;">
-    <h3>Novo contrato</h3>
-    <form id="contratoForm" class="form-grid cols-2">
+  <div class="card">
+    <div class="form-grid cols-2">
       <div class="field">
-        <label>Cliente</label>
-        <select id="clienteId" required><option value="">Selecione...</option></select>
+        <label>Buscar cliente</label>
+        <input id="buscaCliente" placeholder="Digite o nome do cliente..." />
       </div>
       <div class="field">
-        <label>Plano</label>
-        <select id="planoId" required><option value="">Selecione...</option></select>
+        <label>Status</label>
+        <select id="filtroStatus">
+          <option value="">Todos</option>
+          <option value="ATIVO">Ativo</option>
+          <option value="SUSPENSO">Suspenso</option>
+          <option value="CANCELADO">Cancelado</option>
+        </select>
       </div>
-      <div class="field"><label>Valor de implantação (R$)</label><input id="valorImplantacao" type="number" step="0.01" min="0" value="0" /></div>
-      <div class="field"><label>Data de assinatura</label><input id="dataAssinatura" type="date" /></div>
-      <div class="field"><label>Início da vigência</label><input id="dataInicio" type="date" /></div>
-      <div class="field"><label>Término da vigência</label><input id="dataTermino" type="date" /></div>
-      <div class="field"><label>Dia de vencimento padrão</label><input id="diaVencimento" type="number" min="1" max="31" placeholder="Ex: 5" /></div>
-      <div class="field" style="grid-column: 1 / -1;">
-        <div class="flex-between">
-          <button type="button" class="btn btn-ghost" id="btnCancelar">Cancelar</button>
-          <button type="submit" class="btn" id="btnSalvar">Salvar</button>
-        </div>
-      </div>
-    </form>
+    </div>
   </div>
 
   <div class="card table-wrap">
@@ -57,22 +53,23 @@
   renderAdminNav("contratos");
 
   const alertBox = document.getElementById("alertBox");
+  let contratosCache = [];
 
   const badgeStatusContrato = (status) => {
     const mapa = { ATIVO: "badge-success", SUSPENSO: "badge-warning", CANCELADO: "badge-muted" };
     return `<span class="badge ${mapa[status] || "badge-muted"}">${status}</span>`;
   };
 
-  async function carregarSelects() {
-    const [clientes, planos] = await Promise.all([adminApi("/clientes"), adminApi("/planos")]);
-    const selectCliente = document.getElementById("clienteId");
-    clientes.forEach((c) => selectCliente.insertAdjacentHTML("beforeend", `<option value="${c.id}">${c.nome} (${c.cpfCnpj})</option>`));
-    const selectPlano = document.getElementById("planoId");
-    planos.forEach((p) => selectPlano.insertAdjacentHTML("beforeend", `<option value="${p.id}">${p.nome} - ${p.velocidade}</option>`));
-  }
+  function renderTabela() {
+    const termo = document.getElementById("buscaCliente").value.trim().toLowerCase();
+    const status = document.getElementById("filtroStatus").value;
 
-  async function carregarTabela() {
-    const contratos = await adminApi("/contratos");
+    const contratos = contratosCache.filter((c) => {
+      const bateNome = !termo || c.cliente.nome.toLowerCase().includes(termo);
+      const bateStatus = !status || c.status === status;
+      return bateNome && bateStatus;
+    });
+
     const tbody = document.getElementById("tabelaContratos");
     tbody.innerHTML = contratos.length
       ? contratos
@@ -84,87 +81,24 @@
         <td data-label="Status">${badgeStatusContrato(c.status)}</td>
         <td data-label="Vigência">${c.dataInicio ? formatData(c.dataInicio) : "-"} a ${c.dataTermino ? formatData(c.dataTermino) : "-"}</td>
         <td data-label="Vencimento">${c.diaVencimento ? `Dia ${c.diaVencimento}` : "-"}</td>
-        <td data-label="">
-          ${
-            c.status === "ATIVO"
-              ? `<button class="btn btn-ghost" data-status="${c.id}:SUSPENSO">Suspender</button>
-                 <button class="btn btn-danger" data-status="${c.id}:CANCELADO">Cancelar</button>`
-              : c.status === "SUSPENSO"
-              ? `<button class="btn btn-ghost" data-status="${c.id}:ATIVO">Reativar</button>`
-              : ""
-          }
-        </td>
+        <td data-label=""><a class="btn btn-ghost" href="cliente-detalhe.html?id=${c.cliente.id}">Ver cliente</a></td>
       </tr>`
           )
           .join("")
-      : `<tr><td colspan="6"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
-
-    const mensagensStatusContrato = {
-      SUSPENSO: "Tem certeza que deseja suspender este contrato?",
-      CANCELADO: "Tem certeza que deseja cancelar este contrato? Essa ação não pode ser desfeita.",
-      ATIVO: "Tem certeza que deseja reativar este contrato?",
-    };
-
-    document.querySelectorAll("[data-status]").forEach((btn) => {
-      btn.onclick = async () => {
-        const [id, status] = btn.dataset.status.split(":");
-        if (!confirm(mensagensStatusContrato[status] || "Confirma esta alteração?")) return;
-        try {
-          await adminApi(`/contratos/${id}`, { method: "PUT", body: { status } });
-          carregarTabela();
-        } catch (err) {
-          alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
-        }
-      };
-    });
+      : `<tr><td colspan="6"><div class="empty-state">Nenhum contrato encontrado.</div></td></tr>`;
   }
 
-  const formCard = document.getElementById("formCard");
-  document.getElementById("btnNovo").onclick = () => {
-    formCard.style.display = "block";
-    formCard.scrollIntoView({ behavior: "smooth" });
-  };
-  document.getElementById("btnCancelar").onclick = () => {
-    formCard.style.display = "none";
-    document.getElementById("contratoForm").reset();
-  };
+  async function carregarTabela() {
+    contratosCache = await adminApi("/contratos");
+    renderTabela();
+  }
 
-  document.getElementById("contratoForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const btnSalvar = document.getElementById("btnSalvar");
-    btnSalvar.disabled = true;
-    try {
-      await adminApi("/contratos", {
-        method: "POST",
-        body: {
-          clienteId: document.getElementById("clienteId").value,
-          planoId: document.getElementById("planoId").value,
-          valorImplantacao: parseFloat(document.getElementById("valorImplantacao").value || "0"),
-          dataAssinatura: document.getElementById("dataAssinatura").value || undefined,
-          dataInicio: document.getElementById("dataInicio").value || undefined,
-          dataTermino: document.getElementById("dataTermino").value || undefined,
-          diaVencimento: document.getElementById("diaVencimento").value || undefined,
-        },
-      });
-      document.getElementById("contratoForm").reset();
-      formCard.style.display = "none";
-      alertBox.innerHTML = `<div class="alert alert-success">Contrato criado.</div>`;
-      carregarTabela();
-    } catch (err) {
-      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
-    } finally {
-      btnSalvar.disabled = false;
-    }
+  document.getElementById("buscaCliente").addEventListener("input", renderTabela);
+  document.getElementById("filtroStatus").addEventListener("change", renderTabela);
+
+  carregarTabela().catch((err) => {
+    alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
   });
-
-  (async () => {
-    try {
-      await carregarSelects();
-      await carregarTabela();
-    } catch (err) {
-      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
-    }
-  })();
 </script>
 </body>
 </html>

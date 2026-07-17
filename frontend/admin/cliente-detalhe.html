@@ -81,10 +81,36 @@
   </div>
 
   <div class="section-title">Contratos</div>
+
+  <div class="card" id="novoContratoCard" style="display:none;">
+    <h3>Novo contrato</h3>
+    <form id="novoContratoForm" class="form-grid cols-2">
+      <div class="field">
+        <label>Plano</label>
+        <select id="novoContratoPlano" required><option value="">Selecione...</option></select>
+      </div>
+      <div class="field"><label>Valor de implantação (R$)</label><input id="novoContratoValorImplantacao" type="number" step="0.01" min="0" value="0" /></div>
+      <div class="field"><label>Data de assinatura</label><input id="novoContratoDataAssinatura" type="date" /></div>
+      <div class="field"><label>Início da vigência</label><input id="novoContratoDataInicio" type="date" /></div>
+      <div class="field"><label>Término da vigência</label><input id="novoContratoDataTermino" type="date" /></div>
+      <div class="field"><label>Dia de vencimento padrão</label><input id="novoContratoDiaVencimento" type="number" min="1" max="31" placeholder="Ex: 5" /></div>
+      <div class="field" style="grid-column: 1 / -1;">
+        <div class="flex-between">
+          <button type="button" class="btn btn-ghost" id="btnCancelarNovoContrato">Cancelar</button>
+          <button type="submit" class="btn" id="btnSalvarNovoContrato">Salvar contrato</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
   <div class="card table-wrap">
+    <div class="flex-between" style="margin-bottom: 0.75rem;">
+      <span></span>
+      <button class="btn btn-ghost" id="btnNovoContrato">+ Novo contrato</button>
+    </div>
     <table>
-      <thead><tr><th>Plano</th><th>Status</th><th>Assinatura</th><th>Contas a receber</th><th></th></tr></thead>
-      <tbody id="tabelaContratos"><tr><td colspan="5">Carregando...</td></tr></tbody>
+      <thead><tr><th>Plano</th><th>Status</th><th>Vigência</th><th>Vencimento</th><th>Contas a receber</th><th></th></tr></thead>
+      <tbody id="tabelaContratos"><tr><td colspan="6">Carregando...</td></tr></tbody>
     </table>
   </div>
 
@@ -235,7 +261,8 @@
           <tr>
             <td data-label="Plano">${c.plano.nome} (${c.plano.velocidade})</td>
             <td data-label="Status">${c.status}</td>
-            <td data-label="Assinatura">${formatData(c.dataAssinatura)}</td>
+            <td data-label="Vigência">${c.dataInicio ? formatData(c.dataInicio) : "-"} a ${c.dataTermino ? formatData(c.dataTermino) : "-"}</td>
+            <td data-label="Vencimento">${c.diaVencimento ? `Dia ${c.diaVencimento}` : "-"}</td>
             <td data-label="Contas a receber">${c.contasReceber?.length || 0}</td>
             <td data-label="">
               <button class="btn btn-ghost" data-alterar-plano="${c.id}">Alterar plano</button>
@@ -251,7 +278,7 @@
           </tr>`
             )
             .join("")
-        : `<tr><td colspan="5"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
+        : `<tr><td colspan="6"><div class="empty-state">Nenhum contrato cadastrado.</div></td></tr>`;
 
       const mensagensStatusContrato = {
         SUSPENSO: "Tem certeza que deseja suspender este contrato?",
@@ -383,6 +410,50 @@
       document.getElementById("modalPlanoAlert").innerHTML = `<div class="alert alert-error">${err.message}</div>`;
     }
   };
+
+  // Novo contrato (criado direto na página do cliente)
+  const novoContratoCard = document.getElementById("novoContratoCard");
+  document.getElementById("btnNovoContrato").onclick = async () => {
+    const select = document.getElementById("novoContratoPlano");
+    if (select.options.length <= 1) {
+      const planos = await adminApi("/planos");
+      planos.forEach((p) => select.insertAdjacentHTML("beforeend", `<option value="${p.id}">${p.nome} (${p.velocidade})</option>`));
+    }
+    novoContratoCard.style.display = "block";
+    novoContratoCard.scrollIntoView({ behavior: "smooth" });
+  };
+  document.getElementById("btnCancelarNovoContrato").onclick = () => {
+    novoContratoCard.style.display = "none";
+    document.getElementById("novoContratoForm").reset();
+  };
+
+  document.getElementById("novoContratoForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btnSalvar = document.getElementById("btnSalvarNovoContrato");
+    btnSalvar.disabled = true;
+    try {
+      await adminApi("/contratos", {
+        method: "POST",
+        body: {
+          clienteId,
+          planoId: document.getElementById("novoContratoPlano").value,
+          valorImplantacao: parseFloat(document.getElementById("novoContratoValorImplantacao").value || "0"),
+          dataAssinatura: document.getElementById("novoContratoDataAssinatura").value || undefined,
+          dataInicio: document.getElementById("novoContratoDataInicio").value || undefined,
+          dataTermino: document.getElementById("novoContratoDataTermino").value || undefined,
+          diaVencimento: document.getElementById("novoContratoDiaVencimento").value || undefined,
+        },
+      });
+      document.getElementById("novoContratoForm").reset();
+      novoContratoCard.style.display = "none";
+      alertBox.innerHTML = `<div class="alert alert-success">Contrato criado com sucesso.</div>`;
+      carregar();
+    } catch (err) {
+      alertBox.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+    } finally {
+      btnSalvar.disabled = false;
+    }
+  });
 
   document.getElementById("btnExcluirCliente").onclick = async () => {
     const primeiraConfirmacao = confirm(
